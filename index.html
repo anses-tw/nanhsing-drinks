@@ -671,7 +671,7 @@
                 // 設定即時監聽器
                 const setupRealtimeListeners = () => {
                     // 1. 監聽目前開團狀態
-                    onSnapshot(doc(db, basePath, "activeSession", "settings", "current"), (docSnap) => {
+                    onSnapshot(doc(db, basePath, "activeSession", "current"), (docSnap) => {
                         if (docSnap.exists()) {
                             Object.assign(activeSession, docSnap.data());
                             adminSession.storeName = activeSession.storeName;
@@ -734,7 +734,7 @@
                     loading.value = true; loadingMsg.value = '正在發布並清空舊訂單...';
                     try {
                         // 1. 更新當前狀態
-                        await setDoc(doc(db, basePath, "activeSession", "settings", "current"), {
+                        await setDoc(doc(db, basePath, "activeSession", "current"), {
                             storeName: adminSession.storeName, organizer: adminSession.organizer, deadline: adminSession.deadline
                         });
                         // 2. 清空舊訂單

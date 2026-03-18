@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>南興喝飲料囉</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --paper-color: #fcf6e5; --ink-color: #111827; --accent-color: #0d9488; --highlight-color: #f59e0b;
+        }
+        body {
+            font-family: 'Noto Sans TC', sans-serif; background-color: #e0f2fe;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23bae6fd' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            color: var(--ink-color);
+        }
+        .paper-card {
+            background-color: var(--paper-color); border: 2px solid var(--ink-color);
+            border-radius: 2px 255px 3px 25px / 255px 5px 225px 3px; box-shadow: 5px 5px 0px rgba(0,0,0,0.1); position: relative;
+        }
+        .paper-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='4' height='4' viewBox='0 0 4 4' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3h1v1H1V3zm2-2h1v1H3V1z' fill='%23000000' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 0;
+        }
+        .sketch-btn {
+            border: 2px solid var(--ink-color); border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+            transition: all 0.2s ease; font-weight: bold;
+        }
+        .sketch-btn:active { transform: scale(0.96); box-shadow: none; }
+        .sketch-btn-primary { background-color: var(--accent-color); color: white; }
+        .sketch-btn-secondary { background-color: white; color: var(--ink-color); }
+        .sketch-btn-secondary:hover { background-color: var(--ink-color); color: white; }
+        .sketch-input {
+            border: 2px solid var(--ink-color); border-radius: 5px 255px 3px 25px / 255px 5px 225px 3px;
+            background: rgba(255,255,255,0.8); padding: 0.5rem; outline: none; transition: all 0.2s ease;
+        }
+        .sketch-input:focus { border-color: var(--accent-color); box-shadow: 2px 2px 0px rgba(0,0,0,0.1); transform: translateY(-1px); }
+        .loader {
+            border: 4px solid #f3f3f3; border-top: 4px solid var(--accent-color); border-radius: 50%;
+            width: 40px; height: 40px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal-enter-active, .modal-leave-active { transition: opacity 0.3s ease; }
+        .modal-enter-from, .modal-leave-to { opacity: 0; }
+        .scale-enter-active, .scale-leave-active { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .scale-enter-from, .scale-leave-to { transform: scale(0.8); }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen text-gray-800">
+
+    <div id="app" class="max-w-3xl mx-auto relative z-10">
+        <!-- 頂部標題區塊 -->
+        <header class="mb-6 flex justify-between items-center">
+            <div class="cursor-pointer" @click="currentView = 'menu'">
+                <h1 class="text-3xl font-black tracking-wider transform -rotate-1 text-teal-700 hover:text-teal-500 transition-colors drop-shadow-sm">
+                    <i class="fas fa-glass-cheers mr-2 text-teal-600"></i>南興喝飲料囉
+                </h1>
+                <p class="text-sm text-gray-600 mt-1 ml-2 font-bold"><i class="fas fa-bolt text-yellow-500 mr-1"></i>Firebase 即時同步版</p>
+            </div>
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button v-if="isConfigured || isPreviewMode" @click="showPasswordModal = true; adminPassword = ''" class="sketch-btn sketch-btn-secondary px-3 py-1.5 text-sm shadow hover:shadow-md flex items-center text-purple-600">
+                    <i class="fas fa-magic sm:mr-1"></i><span class="hidden sm:inline font-bold">發起新團購</span>
+                </button>
+                <button @click="showSettings = true" class="sketch-btn sketch-btn-secondary w-10 h-10 flex items-center justify-center text-xl shadow hover:shadow-md" title="設定">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- 主內容區 -->
+        <main class="paper-card p-4 md:p-8 min-h-[500px]">
+            <transition name="fade">
+                <div v-if="loading" class="absolute inset-0 z-50 bg-white bg-opacity-80 flex flex-col items-center justify-center rounded-lg backdrop-blur-sm">
+                    <div class="loader mb-4"></div>
+                    <p class="font-bold text-gray-600 animate-pulse">{{ loadingMsg }}</p>
+                </div>
+            </transition>
+
+            <!-- 狀態 0：尚未設定資料庫 -->
+            <transition name="fade" mode="out-in">
+                <div v-if="!isConfigured && !isPreviewMode" class="text-center py-10" key="setup">
+                    <div class="text-6xl text-gray-300 mb-6"><i class="fas fa-database"></i></div>
+                    <h2 class="text-2xl font-bold mb-4">尚未連結 Firebase 資料庫</h2>
+                    <p class="text-gray-600 mb-8 max-w-md mx-auto">請點擊右上角的設定 (⚙️) 貼上您的 Firebase Config 以啟動超高速連線。</p>
+                    <div class="flex flex-col items-center space-y-4">
+                        <button @click="showSettings = true" class="sketch-btn sketch-btn-primary px-8 py-3 text-lg shadow-lg">
+                            <i class="fas fa-plug mr-2"></i>前往設定
+                        </button>
+                        <button @click="enterPreviewMode" class="text-gray-500 hover:text-gray-800 underline text-sm transition-colors mt-2">
+                            👉 先點此預覽介面 (展示模式)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 狀態 1：瀏覽今日菜單 -->
+                <div v-else-if="currentView === 'menu'" key="menu">
+                    <!-- 今日開團資訊面板 -->
+                    <div class="bg-teal-50 border-l-4 border-teal-500 p-4 mb-6 rounded-r-lg shadow-sm border-t border-r border-b border-teal-100">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                            <div>
+                                <p class="text-sm text-teal-600 font-bold mb-1"><i class="fas fa-bullhorn mr-1"></i>本次開團店家</p>
+                                <h2 class="text-2xl font-black text-gray-800">{{ activeSession.storeName || '目前尚未發起團購' }}</h2>
+                            </div>
+                            <div v-if="activeSession.storeName" class="mt-3 sm:mt-0 flex flex-col gap-1 text-sm font-bold text-gray-700 bg-white px-4 py-2 rounded-lg border border-teal-100 shadow-sm w-full sm:w-auto">
+                                <span class="flex items-center"><i class="fas fa-user-circle w-5 text-teal-500"></i>發起人：<span class="text-teal-700 ml-1">{{ activeSession.organizer || '未填寫' }}</span></span>
+                                <span class="flex items-center"><i class="fas fa-clock w-5 text-red-400"></i>結單時間：<span class="text-red-500 ml-1">{{ activeSession.deadline || '未填寫' }}</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end mb-4">
+                        <button @click="currentView = 'orders'" class="sketch-btn sketch-btn-secondary px-4 py-2 text-sm shadow flex items-center relative">
+                            <i class="fas fa-list-ol mr-2 text-blue-500"></i>查看訂單與統計
+                            <!-- 即時連線指示燈 -->
+                            <span v-if="isConfigured" class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-pulse" title="即時同步中"></span>
+                        </button>
+                    </div>
+
+                    <div v-if="!activeSession.storeName || menuItems.length === 0" class="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                        <i class="fas fa-mug-hot text-4xl text-gray-300 mb-3"></i>
+                        <p class="text-gray-500 font-medium">現在沒有開放點餐喔！<br>請等候主揪發起新團購。</p>
+                    </div>
+
+                    <!-- 菜單列表 -->
+                    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div v-for="item in menuItems" :key="item.id" 
+                             class="bg-white p-4 rounded-lg border-2 border-gray-100 hover:border-teal-400 transition-all cursor-pointer relative flex justify-between items-center group active:scale-95 shadow-sm" 
+                             @click="openItemModal(item)">
+                            <div>
+                                <h3 class="font-bold text-lg text-gray-800">{{ item.name }}</h3>
+                                <span class="inline-block mt-1 text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{{ item.category }}</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <span class="font-bold text-teal-600 text-lg">${{ item.price }}</span>
+                                <button class="bg-teal-50 text-teal-600 md:group-hover:bg-teal-500 md:group-hover:text-white w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-teal-100">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 浮動購物車按鈕 -->
+                    <transition name="scale">
+                        <div v-if="cart.length > 0" class="fixed bottom-6 right-6 z-40">
+                            <button @click="currentView = 'cart'" class="sketch-btn sketch-btn-primary w-16 h-16 rounded-full flex items-center justify-center shadow-2xl text-2xl relative hover:scale-110 transition-transform bg-teal-600">
+                                <i class="fas fa-shopping-basket"></i>
+                                <span class="absolute -top-2 -right-2 bg-yellow-400 text-gray-800 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                                    {{ cartTotalQty }}
+                                </span>
+                            </button>
+                        </div>
+                    </transition>
+                </div>
+
+                <!-- 狀態 2：確認訂單與結帳 -->
+                <div v-else-if="currentView === 'cart'" key="cart">
+                    <div class="flex items-center mb-6 border-b-2 border-dashed border-gray-300 pb-4">
+                        <button @click="currentView = 'menu'" class="text-gray-500 hover:text-gray-800 mr-4 transition-colors p-2 rounded-full hover:bg-gray-100">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h2 class="text-xl font-bold">我的購物車</h2>
+                    </div>
+
+                    <div v-if="cart.length === 0" class="text-center py-10">
+                        <p class="text-gray-500">購物車空空的，趕快去點餐吧！</p>
+                    </div>
+
+                    <div v-else class="space-y-4 mb-8">
+                        <transition-group name="fade">
+                            <div v-for="(item, index) in cart" :key="index" class="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-white p-3 rounded-lg border-2 border-gray-100 shadow-sm gap-3">
+                                <div class="flex-1 w-full">
+                                    <div class="font-bold text-gray-800">{{ item.name }}</div>
+                                    <input v-model="item.note" placeholder="備註 (如：半糖/去冰...)" class="mt-1 w-full text-sm border-b border-gray-300 focus:border-teal-400 outline-none bg-transparent transition-colors py-1">
+                                </div>
+                                <div class="flex items-center justify-between w-full sm:w-auto mt-2 sm:mt-0">
+                                    <div class="flex items-center space-x-2 bg-gray-50 rounded-full p-1 border border-gray-200">
+                                        <button @click="updateQty(index, -1)" class="w-8 h-8 rounded-full text-gray-600 hover:bg-white hover:shadow font-bold transition-all">-</button>
+                                        <span class="font-mono font-bold w-6 text-center text-sm">{{ item.qty }}</span>
+                                        <button @click="updateQty(index, 1)" class="w-8 h-8 rounded-full text-gray-600 hover:bg-white hover:shadow font-bold transition-all">+</button>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="ml-4 font-bold text-right text-gray-700 whitespace-nowrap">${{ item.price * item.qty }}</div>
+                                        <button @click="removeFromCart(index)" class="ml-3 text-gray-300 hover:text-red-500 transition-colors p-2"><i class="fas fa-trash-alt"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </transition-group>
+                    </div>
+
+                    <div class="border-t-2 border-gray-800 pt-6">
+                        <div class="flex justify-between items-end mb-6 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                            <div class="text-gray-600 font-medium">總共 <span class="font-bold text-gray-800">{{ cartTotalQty }}</span> 份飲品</div>
+                            <div class="text-3xl font-bold text-teal-600">${{ cartTotalPrice }}</div>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label class="block font-bold mb-2 text-gray-700">您的暱稱 <span class="text-red-500">*</span></label>
+                            <input v-model="userName" type="text" placeholder="例如：設計部 小明" class="sketch-input w-full text-lg shadow-inner">
+                        </div>
+
+                        <button @click="submitOrder" :disabled="!userName || cart.length === 0" 
+                            class="sketch-btn sketch-btn-primary w-full py-4 text-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center">
+                            <i class="fas fa-paper-plane mr-2"></i>確認送出訂單
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 狀態 3：發起團購與菜單庫管理 (Firebase版) -->
+                <div v-else-if="currentView === 'admin'" key="admin">
+                    <div class="flex items-center justify-between mb-6 border-b-2 border-dashed border-gray-300 pb-4">
+                        <div class="flex items-center">
+                            <button @click="currentView = 'menu'" class="text-gray-500 hover:text-gray-800 mr-4 transition-colors p-2 rounded-full hover:bg-gray-100">
+                                <i class="fas fa-arrow-left text-xl"></i>
+                            </button>
+                            <h2 class="text-xl font-bold">後台管理中心</h2>
+                        </div>
+                    </div>
+
+                    <div class="space-y-8">
+                        <!-- 區塊一：發起今日團購 -->
+                        <div class="bg-white p-6 rounded-xl border-2 border-teal-300 shadow-md relative overflow-hidden">
+                            <div class="absolute top-0 right-0 bg-teal-500 text-white px-4 py-1 rounded-bl-lg font-bold text-sm shadow">STEP 1. 發起開團</div>
+                            <h3 class="font-bold text-xl mb-4 text-gray-800 mt-2"><i class="fas fa-rocket mr-2 text-teal-500"></i>今日要喝哪一家？</h3>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-bold mb-2 text-gray-700">選擇店家 (來自菜單庫)</label>
+                                    <div class="flex items-center gap-2">
+                                        <select v-model="adminSession.storeName" class="sketch-input flex-1 text-lg bg-gray-50">
+                                            <option value="" disabled>請選擇店家...</option>
+                                            <option v-for="store in allStores" :key="store" :value="store">{{ store }}</option>
+                                        </select>
+                                        <button @click="luckyDraw" class="sketch-btn bg-yellow-400 hover:bg-yellow-500 text-yellow-900 border-2 border-yellow-600 px-4 py-2 text-lg flex items-center shadow-sm whitespace-nowrap">
+                                            <i class="fas fa-dice mr-2" :class="{'fa-spin': isDrawing}"></i>抽抽樂
+                                        </button>
+                                    </div>
+                                    <p v-if="allStores.length === 0" class="text-xs text-red-500 mt-1">目前菜單庫是空的，請先在下方建檔喔！</p>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-bold mb-2 text-gray-700">發起人</label>
+                                        <input v-model="adminSession.organizer" type="text" placeholder="如：小花" class="sketch-input w-full bg-gray-50">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold mb-2 text-gray-700">結單時間</label>
+                                        <input v-model="adminSession.deadline" type="time" class="sketch-input w-full bg-gray-50 font-mono">
+                                    </div>
+                                </div>
+
+                                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm font-bold flex items-center">
+                                    <i class="fas fa-exclamation-triangle mr-2 text-red-500 text-xl"></i>
+                                    <span>注意：點擊發布後，系統將會自動<span class="text-red-600 underline">清空上一輪的訂單紀錄</span>，全體畫面即時更新！</span>
+                                </div>
+
+                                <button @click="startNewSession" :disabled="!adminSession.storeName || isDrawing" class="sketch-btn sketch-btn-primary w-full py-4 text-lg shadow-md flex justify-center items-center disabled:opacity-50">
+                                    <i class="fas fa-bullhorn mr-2"></i>確認發布本次團購
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 區塊二：菜單庫管理 (建檔) -->
+                        <div class="bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
+                            <h3 class="font-bold text-xl mb-4 text-gray-800"><i class="fas fa-database mr-2 text-blue-500"></i>STEP 2. 菜單庫建檔管理</h3>
+                            <p class="text-sm text-gray-600 mb-4">您可以預先建置常喝的飲料店菜單。資料儲存於 Firebase。</p>
+
+                            <div class="mb-4 p-4 bg-white border border-gray-300 rounded-lg shadow-inner">
+                                <label class="block text-sm font-bold mb-2 text-gray-700">正在編輯的店家名稱</label>
+                                <div class="flex gap-2">
+                                    <input v-model="editStoreName" type="text" placeholder="例如：50嵐、麻古茶坊..." class="sketch-input flex-1">
+                                    <button @click="loadStoreMenuForEdit" :disabled="!editStoreName || !allStores.includes(editStoreName)" class="sketch-btn sketch-btn-secondary px-4 text-sm whitespace-nowrap disabled:opacity-50">載入舊資料</button>
+                                </div>
+                            </div>
+
+                            <div class="mb-6 p-6 bg-white rounded-lg border-2 border-dashed border-blue-300 text-center hover:bg-blue-50 transition-all relative cursor-pointer group">
+                                <input type="file" ref="fileInput" @change="handleImageUpload" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                                <div v-if="!aiProcessing" class="group-hover:scale-105 transition-transform">
+                                    <i class="fas fa-camera text-4xl text-blue-400 mb-2"></i>
+                                    <h4 class="font-bold text-gray-700">上傳實體菜單照片讓 AI 建檔</h4>
+                                </div>
+                                <div v-else class="flex flex-col items-center">
+                                     <div class="loader mb-2"></div>
+                                     <p class="text-sm font-bold text-blue-500 animate-pulse">AI 直接連線辨識中...</p>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                                <div class="flex justify-between items-center mb-4">
+                                    <span class="font-bold text-gray-700">品項列表</span>
+                                    <button @click="addNewEmptyItem" class="text-sm text-blue-600 bg-blue-50 px-3 py-1.5 rounded font-bold border border-blue-200"><i class="fas fa-plus mr-1"></i>手動新增</button>
+                                </div>
+
+                                <div v-if="newMenuItems.length === 0" class="text-center py-6 text-gray-400 bg-gray-50 rounded border border-gray-100">目前還沒有品項，請上傳照片或手動新增。</div>
+                                
+                                <div v-else class="space-y-2 mb-6 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                                    <div v-for="(item, idx) in newMenuItems" :key="idx" class="flex space-x-2 items-center bg-gray-50 p-2 rounded border border-gray-200">
+                                        <input v-model="item.name" placeholder="品名" class="sketch-input flex-1 py-1 text-sm bg-white">
+                                        <input v-model="item.price" type="number" placeholder="原價" class="sketch-input w-20 text-center py-1 text-sm font-mono bg-white">
+                                        <button @click="newMenuItems.splice(idx, 1)" class="text-gray-400 hover:text-red-500 px-2"><i class="fas fa-times"></i></button>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex gap-3">
+                                    <button v-if="editStoreName && allStores.includes(editStoreName)" @click="confirmModal.show('deleteStore')" class="sketch-btn bg-white border-red-500 text-red-500 hover:bg-red-50 px-4 py-2 flex items-center justify-center">
+                                        <i class="fas fa-trash-alt mr-1"></i>刪除此店家
+                                    </button>
+                                    <button @click="saveMenuToLibrary" :disabled="!editStoreName || newMenuItems.length === 0" class="sketch-btn bg-blue-600 text-white flex-1 py-2 shadow flex justify-center items-center disabled:opacity-50">
+                                        <i class="fas fa-save mr-2"></i>儲存至 Firebase 菜單庫
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 狀態 4：訂單統計 -->
+                <div v-else-if="currentView === 'orders'" key="orders">
+                    <div class="relative flex items-center justify-center mb-6 border-b-2 border-dashed border-gray-300 pb-4">
+                        <button @click="currentView = 'menu'" class="absolute left-0 text-gray-500 hover:text-gray-800 transition-colors flex items-center px-2 py-1.5 rounded-lg hover:bg-gray-100" title="返回菜單點餐">
+                            <i class="fas fa-arrow-left text-lg mr-1.5"></i>
+                            <span class="text-sm font-bold hidden sm:inline">返回菜單</span>
+                        </button>
+                        <h2 class="text-xl font-bold">訂單即時統計</h2>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <div class="flex-1 order-2 md:order-1">
+                            <div class="bg-white p-4 rounded-lg border-2 border-gray-200 shadow-sm h-full flex flex-col">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="font-bold text-lg text-gray-800"><i class="fas fa-clipboard-list mr-2 text-green-500"></i>給店家的清單</h3>
+                                    <button @click="copyOrderText" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded transition-colors flex items-center font-medium">
+                                        <i class="far fa-copy mr-1"></i>複製文字
+                                    </button>
+                                </div>
+                                <div class="w-full">
+                                    <pre class="whitespace-pre-wrap text-sm font-mono bg-teal-50 p-4 rounded-lg border border-teal-200 text-gray-800 h-64 overflow-y-auto w-full custom-scrollbar">{{ generateOrderText }}</pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 order-1 md:order-2">
+                             <div class="flex justify-between items-center mb-4">
+                                 <h3 class="font-bold text-lg text-gray-800 flex items-center">
+                                     <i class="fas fa-users mr-2 text-blue-500"></i>明細 ({{ existingOrders.length }} 筆)
+                                     <span v-if="isConfigured" class="ml-3 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full border border-green-200 flex items-center animate-pulse"><i class="fas fa-sync-alt fa-spin mr-1"></i>即時同步中</span>
+                                 </h3>
+                             </div>
+                             <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm w-full">
+                                 <div class="max-h-[400px] overflow-auto custom-scrollbar">
+                                     <table class="w-full text-sm text-left min-w-[450px]">
+                                         <thead class="bg-gray-50 font-bold text-gray-600 sticky top-0 shadow-sm z-10">
+                                             <tr>
+                                                 <th class="p-3 border-b">訂購人</th>
+                                                 <th class="p-3 border-b">品項內容</th>
+                                                 <th class="p-3 text-right border-b">金額</th>
+                                                 <th class="p-3 text-center border-b w-16">付款</th>
+                                                 <th class="p-3 text-center border-b w-16">領餐</th>
+                                             </tr>
+                                         </thead>
+                                         <tbody>
+                                             <tr v-if="existingOrders.length === 0">
+                                                 <td colspan="5" class="p-6 text-center text-gray-400">目前還沒有人點餐</td>
+                                             </tr>
+                                             <transition-group name="fade">
+                                                 <tr v-for="order in existingOrders" :key="order.id" class="border-b border-gray-50 hover:bg-yellow-50/50 transition-colors">
+                                                     <td class="p-3 font-medium text-gray-700">{{ order.user }}</td>
+                                                     <td class="p-3">
+                                                         <div class="text-gray-800">{{ order.item }} <span class="text-xs text-gray-500 ml-1">x{{ order.qty }}</span></div>
+                                                         <div v-if="order.note" class="text-xs text-orange-500 mt-0.5"><i class="fas fa-info-circle mr-1"></i>{{ order.note }}</div>
+                                                     </td>
+                                                     <td class="p-3 text-right font-mono font-bold text-gray-700">${{ order.item_price || '-' }}</td>
+                                                     <td class="p-3 text-center">
+                                                         <button @click="toggleOrderStatus(order, 'paid')" :class="order.paid ? 'bg-green-600 text-white border-green-700 shadow-md' : 'bg-gray-100 text-gray-500 border-gray-400 hover:bg-gray-200'" class="border-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap active:scale-95">
+                                                             {{ order.paid ? '已付' : '未付' }}
+                                                         </button>
+                                                     </td>
+                                                     <td class="p-3 text-center">
+                                                         <button @click="toggleOrderStatus(order, 'received')" :class="order.received ? 'bg-blue-600 text-white border-blue-700 shadow-md' : 'bg-gray-100 text-gray-500 border-gray-400 hover:bg-gray-200'" class="border-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap active:scale-95">
+                                                             {{ order.received ? '已領' : '未領' }}
+                                                         </button>
+                                                     </td>
+                                                 </tr>
+                                             </transition-group>
+                                         </tbody>
+                                     </table>
+                                 </div>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+        </main>
+
+        <!-- 餐點客製化 Modal -->
+        <transition name="modal">
+            <div v-if="activeItem" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm transition-opacity" @click="activeItem = null"></div>
+                <div class="paper-card bg-white w-full max-w-md p-6 relative z-10 transform scale-100 transition-transform">
+                    <div class="flex justify-between items-start mb-4 border-b-2 border-gray-100 pb-3">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800">{{ activeItem.name }}</h3>
+                            <p class="text-red-500 font-bold text-lg mt-1">${{ activeItem.price + itemOptions.sizeExtraPrice + Number(itemOptions.customExtraPrice || 0) }}</p>
+                        </div>
+                        <button @click="activeItem = null" class="text-gray-400 hover:text-gray-700 text-xl"><i class="fas fa-times"></i></button>
+                    </div>
+                    
+                    <div class="max-h-[60vh] overflow-y-auto custom-scrollbar pr-2 space-y-5 text-left">
+                        <div>
+                            <label class="block text-sm font-bold mb-2 text-gray-700">尺寸 / 升級</label>
+                            <div class="flex flex-wrap gap-2 mb-2">
+                                <button @click="setSize('L (標準)', 0)" :class="itemOptions.size === 'L (標準)' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600'" class="px-3 py-1.5 rounded-full text-sm font-bold transition-colors">L (標準)</button>
+                                <button @click="setSize('M (中杯)', -5)" :class="itemOptions.size === 'M (中杯)' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600'" class="px-3 py-1.5 rounded-full text-sm font-bold transition-colors">M 中杯 (-$5)</button>
+                            </div>
+                            <div class="flex items-center space-x-2 mt-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                <span class="text-sm text-gray-600 font-medium whitespace-nowrap">加料 (另填加價金額) $</span>
+                                <input v-model="itemOptions.customExtraPrice" type="number" step="5" min="0" class="sketch-input w-24 text-center py-1 text-sm font-mono shadow-inner">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold mb-2 text-gray-700">甜度 <span class="text-xs font-normal text-gray-400">(選填)</span></label>
+                            <div class="flex flex-wrap gap-2">
+                                <button v-for="s in ['正常糖', '少糖', '半糖', '微糖', '無糖']" :key="s" @click="itemOptions.sugar = itemOptions.sugar === s ? '' : s" :class="itemOptions.sugar === s ? 'bg-blue-500 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200'" class="px-3 py-1.5 rounded-lg text-sm border-2 font-medium transition-all active:scale-95">{{ s }}</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold mb-2 text-gray-700">冰塊 <span class="text-xs font-normal text-gray-400">(選填)</span></label>
+                            <div class="flex flex-wrap gap-2">
+                                <button v-for="i in ['正常冰', '少冰', '微冰', '去冰', '完全去冰', '溫', '熱']" :key="i" @click="itemOptions.ice = itemOptions.ice === i ? '' : i" :class="itemOptions.ice === i ? 'bg-blue-500 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200'" class="px-3 py-1.5 rounded-lg text-sm border-2 font-medium transition-all active:scale-95">{{ i }}</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold mb-2 text-gray-700">其他備註</label>
+                            <input v-model="itemOptions.note" type="text" placeholder="例如：加珍珠、波霸..." class="sketch-input w-full text-sm shadow-inner">
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-gray-200 flex space-x-3">
+                        <button @click="activeItem = null" class="sketch-btn sketch-btn-secondary flex-1 py-3 text-sm">取消</button>
+                        <button @click="confirmAddItem" class="sketch-btn sketch-btn-primary flex-[2] py-3 text-sm flex items-center justify-center text-lg"><i class="fas fa-cart-plus mr-2"></i> 加入購物車</button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- 自訂確認 Modal -->
+        <transition name="modal">
+            <div v-if="confirmModal.isVisible" class="fixed inset-0 z-[150] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm transition-opacity" @click="confirmModal.isVisible = false"></div>
+                <div class="bg-white rounded-xl shadow-2xl p-6 relative z-10 max-w-sm w-full text-center border-2 border-gray-800 transform scale-100 transition-transform">
+                    <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">{{ confirmModal.title }}</h3>
+                    <p class="text-gray-600 mb-6 text-sm">{{ confirmModal.message }}</p>
+                    <div class="flex gap-3">
+                        <button @click="confirmModal.isVisible = false" class="sketch-btn sketch-btn-secondary flex-1 py-2 text-sm">取消</button>
+                        <button @click="confirmModal.execute" class="sketch-btn bg-red-600 hover:bg-red-700 text-white border-red-800 flex-1 py-2 text-sm">確定執行</button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- 密碼輸入 Modal -->
+        <transition name="modal">
+            <div v-if="showPasswordModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm transition-opacity" @click="showPasswordModal = false"></div>
+                <div class="paper-card bg-white w-full max-w-sm p-6 relative z-10 transform scale-100 transition-transform text-center">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800"><i class="fas fa-lock mr-2 text-gray-500"></i>發起人驗證</h3>
+                    <p class="text-sm text-gray-600 mb-4">請輸入管理員密碼進入後台</p>
+                    <input v-model="adminPassword" type="password" placeholder="請輸入密碼" @keyup.enter="checkAdminPassword" class="sketch-input w-full text-center text-lg tracking-widest mb-6 font-mono">
+                    <div class="flex space-x-3 justify-center">
+                        <button @click="showPasswordModal = false" class="sketch-btn sketch-btn-secondary px-5 py-2 text-sm w-full">取消</button>
+                        <button @click="checkAdminPassword" class="sketch-btn sketch-btn-primary px-5 py-2 text-sm flex items-center justify-center w-full">確認</button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- 設定視窗 Modal -->
+        <transition name="modal">
+            <div v-if="showSettings" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm transition-opacity" @click="showSettings = false"></div>
+                <div class="paper-card bg-white w-full max-w-lg p-6 relative z-10 transform scale-100 transition-transform">
+                    <div class="flex justify-between items-center mb-5">
+                        <h3 class="text-xl font-bold flex items-center text-gray-800"><i class="fas fa-cogs mr-2 text-gray-500"></i>系統設定 (Firebase版)</h3>
+                        <button @click="showSettings = false" class="text-gray-400 hover:text-gray-700 text-xl"><i class="fas fa-times"></i></button>
+                    </div>
+                    
+                    <div v-if="!isConfigured" class="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <label class="block text-sm font-bold mb-2 text-gray-700">Firebase Config (大括號區塊)</label>
+                        <textarea v-model="tempFirebaseConfig" placeholder="貼上 { apiKey: '...', ... } 的內容" class="sketch-input w-full text-xs font-mono h-24 custom-scrollbar"></textarea>
+                    </div>
+
+                    <div v-if="!isConfigured" class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <label class="block text-sm font-bold mb-2 text-gray-700">Gemini API Key (用於辨識菜單)</label>
+                        <input v-model="tempGeminiKey" type="password" placeholder="貼上 AIzaSy..." class="sketch-input w-full text-sm font-mono">
+                    </div>
+
+                    <div v-if="isConfigured" class="border-t-2 border-dashed border-gray-200 pt-5 mb-6">
+                        <h4 class="font-bold mb-3 text-sm text-gray-800 flex items-center"><i class="fas fa-share-alt mr-2 text-blue-500"></i>分享連結給同事</h4>
+                        <div class="flex items-center space-x-2 mb-4 bg-white p-1 rounded-lg border border-gray-300">
+                            <input :value="shareUrl" readonly class="w-full text-xs bg-transparent text-gray-500 font-mono outline-none px-2 py-1 truncate">
+                            <button @click="copyShareUrl" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-bold transition-colors whitespace-nowrap">複製</button>
+                        </div>
+                        <p class="text-xs text-center text-gray-500 mb-2">分享連結已包含您的資料庫位置，同事打開就能直接用！</p>
+                    </div>
+
+                    <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
+                        <button @click="clearSettings" class="text-gray-400 hover:text-red-500 text-sm font-medium transition-colors flex items-center"><i class="fas fa-eraser mr-1"></i>清除重置</button>
+                        <div class="flex space-x-3">
+                            <button @click="showSettings = false" class="sketch-btn sketch-btn-secondary px-5 py-2 text-sm">關閉</button>
+                            <button v-if="!isConfigured" @click="saveSettings" class="sketch-btn sketch-btn-primary px-5 py-2 text-sm flex items-center"><i class="fas fa-link mr-1"></i>儲存並連線</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- 訊息提示 -->
+        <transition name="scale">
+            <div v-if="msgModal.show" class="fixed top-10 left-1/2 transform -translate-x-1/2 z-[200] flex items-center justify-center p-4 pointer-events-none">
+                <div class="bg-gray-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center space-x-3 pointer-events-auto">
+                    <i v-if="msgModal.type === 'success'" class="fas fa-check-circle text-green-400 text-lg"></i>
+                    <i v-else-if="msgModal.type === 'error'" class="fas fa-exclamation-circle text-red-400 text-lg"></i>
+                    <i v-else class="fas fa-info-circle text-blue-400 text-lg"></i>
+                    <span class="font-bold text-sm tracking-wide">{{ msgModal.text }}</span>
+                </div>
+            </div>
+        </transition>
+
+    </div>
+
+    <!-- Firebase 模組載入 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const { createApp, ref, computed, onMounted, reactive } = Vue;
+
+        createApp({
+            setup() {
+                // UI 狀態
+                const currentView = ref('menu');
+                const loading = ref(false);
+                const loadingMsg = ref('');
+                const showSettings = ref(false);
+                const showPasswordModal = ref(false);
+                const adminPassword = ref('');
+                const isPreviewMode = ref(false);
+                
+                // 設定資料
+                const isConfigured = ref(false);
+                const tempFirebaseConfig = ref('');
+                const tempGeminiKey = ref('');
+                const geminiKey = ref('');
+                let db = null;
+                let auth = null;
+                const basePath = 'artifacts/nanhsing-drinks/public/data'; // 統一儲存路徑
+
+                // 業務資料
+                const activeSession = reactive({ storeName: '', organizer: '', deadline: '' });
+                const allStores = ref([]);
+                const storeMenusObj = ref({}); // { storeName: [items...] }
+                
+                const adminSession = reactive({ storeName: '', organizer: '', deadline: '' });
+                const editStoreName = ref('');
+                const isDrawing = ref(false);
+
+                const activeItem = ref(null);
+                const itemOptions = reactive({ size: 'L (標準)', sizeExtraPrice: 0, customExtraPrice: 0, sugar: '', ice: '', note: '' });
+
+                const menuItems = computed(() => activeSession.storeName ? (storeMenusObj.value[activeSession.storeName] || []) : []);
+                const existingOrders = ref([]);
+                const cart = ref([]);
+                const userName = ref('');
+                
+                const aiProcessing = ref(false);
+                const newMenuItems = ref([]);
+                const fileInput = ref(null);
+
+                // 全局提示機制
+                const msgModal = reactive({ show: false, text: '', type: 'info' });
+                let msgTimeout = null;
+                const showMsg = (text, type = 'success') => {
+                    if(msgTimeout) clearTimeout(msgTimeout);
+                    msgModal.text = text; msgModal.type = type; msgModal.show = true;
+                    msgTimeout = setTimeout(() => msgModal.show = false, 3000);
+                };
+
+                // 自訂確認視窗
+                const confirmModal = reactive({
+                    isVisible: false, title: '', message: '', actionType: '',
+                    show: (type) => {
+                        confirmModal.actionType = type;
+                        if(type === 'deleteStore') { confirmModal.title = '刪除店家'; confirmModal.message = '確定要從菜單庫徹底刪除這家店的所有菜單嗎？'; }
+                        confirmModal.isVisible = true;
+                    },
+                    execute: () => {
+                        confirmModal.isVisible = false;
+                        if(confirmModal.actionType === 'deleteStore') executeDeleteStore();
+                    }
+                });
+
+                // 初始化與解碼
+                onMounted(async () => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const configParam = urlParams.get('config');
+                    let configStr = localStorage.getItem('office_eats_fb_config');
+                    let gKey = localStorage.getItem('office_eats_gemini_key') || '';
+                    
+                    if (configParam) {
+                        try {
+                            const decoded = JSON.parse(atob(configParam));
+                            if (decoded.fb && decoded.gm) {
+                                configStr = JSON.stringify(decoded.fb);
+                                gKey = decoded.gm;
+                                localStorage.setItem('office_eats_fb_config', configStr);
+                                localStorage.setItem('office_eats_gemini_key', gKey);
+                                window.history.replaceState({}, document.title, window.location.pathname);
+                            }
+                        } catch (e) { console.error("URL 解碼失敗"); }
+                    }
+
+                    if (configStr) {
+                        try {
+                            const fbConfig = JSON.parse(configStr);
+                            initFirebase(fbConfig);
+                            geminiKey.value = gKey;
+                            isConfigured.value = true;
+                        } catch(e) { console.error("Firebase 初始化失敗"); }
+                    } else {
+                        // 若無設定，準備設定畫面
+                        tempFirebaseConfig.value = "{\n  apiKey: \"...\",\n  authDomain: \"...\",\n  projectId: \"...\"\n}";
+                    }
+                });
+
+                // Firebase 核心初始化與監聽 (真正的即時同步！)
+                const initFirebase = async (config) => {
+                    loading.value = true; loadingMsg.value = "連線至資料庫中...";
+                    try {
+                        const app = initializeApp(config);
+                        db = getFirestore(app);
+                        auth = getAuth(app);
+                        
+                        await signInAnonymously(auth);
+                        
+                        onAuthStateChanged(auth, (user) => {
+                            if (user) {
+                                setupRealtimeListeners();
+                                loading.value = false;
+                            }
+                        });
+                    } catch(e) {
+                        showMsg('Firebase 連線失敗，請檢查 Config 格式是否正確', 'error');
+                        loading.value = false;
+                    }
+                };
+
+                // 設定即時監聽器
+                const setupRealtimeListeners = () => {
+                    // 1. 監聽目前開團狀態
+                    onSnapshot(doc(db, basePath, "activeSession", "settings", "current"), (docSnap) => {
+                        if (docSnap.exists()) {
+                            Object.assign(activeSession, docSnap.data());
+                            adminSession.storeName = activeSession.storeName;
+                            adminSession.organizer = activeSession.organizer;
+                            adminSession.deadline = activeSession.deadline;
+                        }
+                    });
+
+                    // 2. 監聽所有店家菜單
+                    onSnapshot(collection(db, basePath, "storeMenus"), (snapshot) => {
+                        const stores = [];
+                        const menus = {};
+                        snapshot.forEach((doc) => {
+                            stores.push(doc.id);
+                            menus[doc.id] = doc.data().items || [];
+                        });
+                        allStores.value = stores;
+                        storeMenusObj.value = menus;
+                    });
+
+                    // 3. 監聽即時訂單
+                    onSnapshot(collection(db, basePath, "orders"), (snapshot) => {
+                        let tempOrders = [];
+                        snapshot.forEach(doc => { tempOrders.push({ id: doc.id, ...doc.data() }); });
+                        // 在前端排序：最新的在最上面
+                        existingOrders.value = tempOrders.sort((a, b) => b.timestamp - a.timestamp);
+                    });
+                };
+
+                const enterPreviewMode = () => {
+                    isPreviewMode.value = true;
+                    activeSession.storeName = '示範飲料店'; activeSession.organizer = '值日生'; activeSession.deadline = '15:30';
+                    allStores.value = ['50嵐', '可不可', '示範飲料店'];
+                    storeMenusObj.value = {
+                        '示範飲料店': [ { id: 1, name: '招牌珍珠奶茶', price: 50, category: '茶飲' }, { id: 2, name: '四季春青茶', price: 35, category: '純茶' } ]
+                    };
+                    existingOrders.value = [ { id: 'test1', user: '小明', item: '招牌珍珠奶茶', qty: 1, note: '半糖, 少冰', item_price: 50, paid: true, received: false } ];
+                    showMsg('已進入預覽模式 (此模式下資料不會真的儲存喔！)', 'info');
+                };
+
+                // ⭐ 抽抽樂
+                const luckyDraw = () => {
+                    if (allStores.value.length === 0) return showMsg('目前還沒有儲存任何店家喔！', 'error');
+                    if (isDrawing.value) return;
+                    isDrawing.value = true;
+                    let counter = 0; const maxBlinks = 15;
+                    const interval = setInterval(() => {
+                        adminSession.storeName = allStores.value[Math.floor(Math.random() * allStores.value.length)];
+                        if (++counter >= maxBlinks) { clearInterval(interval); isDrawing.value = false; showMsg('🎉 決定就是這家了！'); }
+                    }, 100);
+                };
+
+                // ⭐ 發起新團購 (Firebase 寫入)
+                const startNewSession = async () => {
+                    if (!adminSession.storeName) return showMsg('請選擇一家店！', 'error');
+                    if (!isConfigured.value) {
+                        Object.assign(activeSession, adminSession); existingOrders.value = []; currentView.value = 'menu';
+                        return showMsg('【預覽模式】新團購發起成功！');
+                    }
+                    loading.value = true; loadingMsg.value = '正在發布並清空舊訂單...';
+                    try {
+                        // 1. 更新當前狀態
+                        await setDoc(doc(db, basePath, "activeSession", "settings", "current"), {
+                            storeName: adminSession.storeName, organizer: adminSession.organizer, deadline: adminSession.deadline
+                        });
+                        // 2. 清空舊訂單
+                        const orderDocs = await getDocs(collection(db, basePath, "orders"));
+                        const deletePromises = [];
+                        orderDocs.forEach(d => deletePromises.push(deleteDoc(d.ref)));
+                        await Promise.all(deletePromises);
+                        
+                        showMsg('新團購發布成功！');
+                        currentView.value = 'menu';
+                    } catch (e) { showMsg('發布失敗', 'error'); } 
+                    finally { loading.value = false; }
+                };
+
+                // 餐點客製化
+                const openItemModal = (item) => {
+                    activeItem.value = item;
+                    itemOptions.size = 'L (標準)'; itemOptions.sizeExtraPrice = 0; itemOptions.customExtraPrice = 0;
+                    itemOptions.sugar = ''; itemOptions.ice = ''; itemOptions.note = '';
+                };
+                const setSize = (size, extraPrice) => { itemOptions.size = size; itemOptions.sizeExtraPrice = extraPrice; };
+                const confirmAddItem = () => {
+                    if (!activeItem.value) return;
+                    let finalName = activeItem.value.name;
+                    if (itemOptions.size && itemOptions.size !== 'L (標準)') finalName += ` - ${itemOptions.size}`;
+                    let finalNoteArr = [];
+                    if (itemOptions.sugar) finalNoteArr.push(itemOptions.sugar);
+                    if (itemOptions.ice) finalNoteArr.push(itemOptions.ice);
+                    if (itemOptions.note) finalNoteArr.push(itemOptions.note);
+                    const finalNote = finalNoteArr.join(', ');
+                    const finalPrice = activeItem.value.price + itemOptions.sizeExtraPrice + Number(itemOptions.customExtraPrice || 0);
+
+                    const cartItem = { name: finalName, price: finalPrice, category: activeItem.value.category, qty: 1, note: finalNote };
+                    const existing = cart.value.find(c => c.name === cartItem.name && c.note === cartItem.note && c.price === cartItem.price);
+                    
+                    if (existing) existing.qty++; else cart.value.push(cartItem);
+                    showMsg(`已將 ${activeItem.value.name} 加入購物車`);
+                    activeItem.value = null; currentView.value = 'cart';
+                };
+                const updateQty = (idx, delta) => { cart.value[idx].qty += delta; if (cart.value[idx].qty <= 0) cart.value.splice(idx, 1); };
+                const removeFromCart = (idx) => cart.value.splice(idx, 1);
+                const cartTotalQty = computed(() => cart.value.reduce((acc, item) => acc + item.qty, 0));
+                const cartTotalPrice = computed(() => cart.value.reduce((acc, item) => acc + (item.price * item.qty), 0));
+
+                // ⭐ 送出訂單 (Firebase)
+                const submitOrder = async () => {
+                    if (!userName.value.trim()) return showMsg('請輸入您的暱稱喔！', 'error');
+                    if (!isConfigured.value) {
+                        showMsg('【預覽模式】訂單送出成功！');
+                        existingOrders.value.unshift(...cart.value.map((c, idx) => ({ id: 'test'+Date.now()+idx, user: userName.value, item: c.name, qty: c.qty, note: c.note, item_price: c.price * c.qty, paid: false, received: false })));
+                        cart.value = []; currentView.value = 'orders'; return;
+                    }
+                    loading.value = true; loadingMsg.value = '訂單火箭發射中...';
+                    try {
+                        const timestamp = Date.now();
+                        const promises = cart.value.map(item => 
+                            addDoc(collection(db, basePath, "orders"), {
+                                user: userName.value, item: item.name, qty: item.qty, note: item.note, item_price: item.price * item.qty, paid: false, received: false, timestamp: timestamp
+                            })
+                        );
+                        await Promise.all(promises);
+                        showMsg('點餐成功！大家的手機畫面已經瞬間更新囉。');
+                        cart.value = []; currentView.value = 'orders';
+                    } catch (e) { showMsg('糟糕，訂單送出失敗了', 'error'); } 
+                    finally { loading.value = false; }
+                };
+
+                const addNewEmptyItem = () => newMenuItems.value.push({ name: '', price: null, category: '手動新增' });
+
+                const handleImageUpload = (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    aiProcessing.value = true;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+                            let width = img.width, height = img.height; const MAX_WIDTH = 800;
+                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                            canvas.width = width; canvas.height = height; ctx.drawImage(img, 0, 0, width, height);
+                            const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+                            analyzeMenuDirectly(base64);
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                };
+
+                // ⭐ 透過前端直接呼叫 Gemini API (拔除 GAS 依賴)
+                const analyzeMenuDirectly = async (base64Image) => {
+                    if (!geminiKey.value) { showMsg('請先在設定中填入 Gemini API Key', 'error'); aiProcessing.value = false; if(fileInput.value) fileInput.value.value = ''; return; }
+                    try {
+                        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.value}`;
+                        const prompt = `分析這張飲料菜單。擷取所有飲品和最貴(或大杯L)的價格。只回傳純 JSON 陣列，例如：[{"name":"紅茶", "price": 30}]。不要包含 markdown 代碼塊標記 (如 \`\`\`json)。`;
+                        const res = await fetch(apiUrl, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: base64Image } }] }] })
+                        });
+                        const result = await res.json();
+                        if(result.error) throw new Error(result.error.message);
+                        const text = result.candidates[0].content.parts[0].text;
+                        const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                        newMenuItems.value = JSON.parse(jsonStr).map(i => ({...i, category: 'AI視覺解析'}));
+                        showMsg('AI 成功將菜單轉為文字囉！');
+                    } catch (e) {
+                        showMsg('AI 辨識失敗，請檢查圖片或金鑰', 'error');
+                        newMenuItems.value = [{ name: '測試飲料', price: 50 }];
+                    } finally {
+                        aiProcessing.value = false; if(fileInput.value) fileInput.value.value = '';
+                    }
+                };
+
+                // ⭐ 儲存菜單到 Firebase
+                const saveMenuToLibrary = async () => {
+                    const validItems = newMenuItems.value.filter(i => i.name && i.price);
+                    if(validItems.length === 0) return showMsg('至少需要輸入一個完整的品項', 'error');
+                    if(!editStoreName.value) return showMsg('請輸入店家名稱！', 'error');
+
+                    if (!isConfigured.value) {
+                        showMsg('【預覽模式】菜單已存入庫。');
+                        if (!allStores.value.includes(editStoreName.value)) allStores.value.push(editStoreName.value);
+                        storeMenusObj.value[editStoreName.value] = validItems;
+                        newMenuItems.value = []; editStoreName.value = ''; return;
+                    }
+
+                    loading.value = true; loadingMsg.value = '正在上傳至 Firebase 菜單庫...';
+                    try {
+                        await setDoc(doc(db, basePath, "storeMenus", editStoreName.value), { items: validItems });
+                        showMsg('已成功儲存至菜單庫！');
+                        newMenuItems.value = []; editStoreName.value = '';
+                    } catch (e) { showMsg('儲存失敗', 'error'); } 
+                    finally { loading.value = false; }
+                };
+
+                const executeDeleteStore = async () => {
+                    if(!isConfigured.value) {
+                        allStores.value = allStores.value.filter(s => s !== editStoreName.value);
+                        delete storeMenusObj.value[editStoreName.value];
+                        showMsg('【預覽模式】店家已刪除'); editStoreName.value = ''; newMenuItems.value = []; return;
+                    }
+                    loading.value = true;
+                    try {
+                        await deleteDoc(doc(db, basePath, "storeMenus", editStoreName.value));
+                        showMsg('店家已徹底刪除');
+                        editStoreName.value = ''; newMenuItems.value = [];
+                    } catch(e) { showMsg('刪除失敗', 'error'); } 
+                    finally { loading.value = false; }
+                }
+
+                const loadStoreMenuForEdit = () => {
+                    const items = storeMenusObj.value[editStoreName.value];
+                    if(items && items.length > 0) {
+                        newMenuItems.value = JSON.parse(JSON.stringify(items)); // 拷貝
+                        showMsg(`已載入 ${editStoreName.value} 的舊資料，可直接修改。`);
+                    } else {
+                        showMsg('此店家目前沒有資料', 'info');
+                    }
+                }
+
+                const generateOrderText = computed(() => {
+                    if (existingOrders.value.length === 0) return '目前尚無訂單資料可以提供給店家。';
+                    const summary = {};
+                    existingOrders.value.forEach(o => { const key = `${o.item} ${o.note ? '('+o.note+')' : ''}`; summary[key] = (summary[key] || 0) + Number(o.qty); });
+                    let text = `📅 飲料團購清單`;
+                    if (activeSession.storeName) text += ` (${activeSession.storeName})`;
+                    text += `\n───────────────────\n`;
+                    for (const [name, qty] of Object.entries(summary)) text += `☑ ${name} x ${qty}\n`;
+                    const totalItems = existingOrders.value.reduce((a,b)=>a+Number(b.qty),0);
+                    const totalPrice = existingOrders.value.reduce((a,b)=>a+Number(b.item_price || 0),0);
+                    text += `───────────────────\n📍 總杯數: ${totalItems} 杯\n💰 預估金額: $${totalPrice}`;
+                    return text;
+                });
+
+                const copyOrderText = () => {
+                    try {
+                        const el = document.createElement('textarea'); el.value = generateOrderText.value;
+                        el.setAttribute('readonly', ''); el.style.position = 'absolute'; el.style.left = '-9999px';
+                        document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+                        showMsg('已為您複製給店家的清單！');
+                    } catch (e) { showMsg('複製失敗，請手動全選複製', 'error'); }
+                };
+
+                // ⭐ 狀態切換 (Firebase Update)
+                const toggleOrderStatus = async (order, field) => {
+                    order[field] = !order[field]; // 前端樂觀更新
+                    if (!isConfigured.value) return showMsg(`【預覽模式】狀態已更新`, 'success');
+                    try { await updateDoc(doc(db, basePath, "orders", order.id), { [field]: order[field] }); } 
+                    catch (e) { order[field] = !order[field]; showMsg('狀態更新失敗，請檢查網路', 'error'); }
+                };
+
+                const saveSettings = () => {
+                    if (!tempFirebaseConfig.value.trim() || !tempFirebaseConfig.value.includes('apiKey')) return showMsg('Config 格式錯誤，找不到 apiKey', 'error');
+                    if (!tempGeminiKey.value.trim()) return showMsg('請輸入 Gemini API Key', 'error');
+                    
+                    try {
+                        // 嘗試將使用者貼上的 JS Object string 轉成合法 JSON
+                        const jsonStr = tempFirebaseConfig.value
+                            .replace(/([{,]\s*)([A-Za-z0-9_]+)\s*:/g, '$1"$2":')
+                            .replace(/'/g, '"');
+                        const configObj = JSON.parse(jsonStr);
+                        
+                        localStorage.setItem('office_eats_fb_config', JSON.stringify(configObj));
+                        localStorage.setItem('office_eats_gemini_key', tempGeminiKey.value);
+                        showSettings.value = false;
+                        
+                        showMsg('設定儲存成功！正在重整網頁以套用新連線...');
+                        setTimeout(() => window.location.reload(), 1500);
+                    } catch (e) {
+                        showMsg('Config 格式無法解析，請確認複製了完整的大括號內容', 'error');
+                    }
+                };
+
+                const clearSettings = () => {
+                    localStorage.clear();
+                    showMsg('設定已全部清除，正在重整網頁...');
+                    setTimeout(() => { window.location.href = window.location.href.split('?')[0]; }, 1000);
+                };
+
+                const shareUrl = computed(() => {
+                    if(!isConfigured.value) return '';
+                    const configStr = localStorage.getItem('office_eats_fb_config');
+                    const gmKey = localStorage.getItem('office_eats_gemini_key');
+                    const payload = { fb: JSON.parse(configStr), gm: gmKey };
+                    return `${window.location.href.split('?')[0]}?config=${btoa(JSON.stringify(payload))}`;
+                });
+                const qrCodeUrl = computed(() => shareUrl.value ? `https://quickchart.io/qr?text=${encodeURIComponent(shareUrl.value)}&size=300&margin=1` : '');
+                const copyShareUrl = async () => {
+                    try { 
+                        const el = document.createElement('textarea'); el.value = shareUrl.value; el.setAttribute('readonly', ''); el.style.position = 'absolute'; el.style.left = '-9999px'; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+                        showMsg('專屬分享連結已複製！同事點開就會自動連線囉。'); 
+                    } catch (e) { showMsg('複製失敗，請手動全選複製', 'error'); }
+                };
+
+                const checkAdminPassword = () => {
+                    if (adminPassword.value === '1234') { showPasswordModal.value = false; adminPassword.value = ''; currentView.value = 'admin'; } 
+                    else { showMsg('密碼錯誤！請重新輸入', 'error'); adminPassword.value = ''; }
+                };
+
+                return {
+                    currentView, loading, loadingMsg, showSettings, 
+                    isConfigured, tempFirebaseConfig, tempGeminiKey, geminiKey,
+                    cart, userName, cartTotalQty, cartTotalPrice,
+                    showPasswordModal, adminPassword, checkAdminPassword, confirmModal,
+                    activeSession, allStores, adminSession, editStoreName, isDrawing, luckyDraw, startNewSession, loadStoreMenuForEdit, saveMenuToLibrary,
+                    activeItem, itemOptions, menuItems, openItemModal, setSize, confirmAddItem,
+                    updateQty, removeFromCart, submitOrder, handleImageUpload, newMenuItems, aiProcessing, addNewEmptyItem,
+                    existingOrders, generateOrderText, copyOrderText, toggleOrderStatus,
+                    saveSettings, clearSettings, shareUrl, qrCodeUrl, copyShareUrl, msgModal, fileInput, isPreviewMode, enterPreviewMode
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

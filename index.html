@@ -116,7 +116,7 @@
                                 <span class="flex items-center"><i class="fas fa-clock w-5 text-red-400"></i>結單時間：<span class="text-red-500 ml-1">{{ activeSession.deadline || '未填寫' }}</span></span>
                                 <!-- 新增：顯示店家電話 -->
                                 <span v-if="activeSession.storePhone" class="flex items-center">
-                                    <i class="fas fa-phone-alt w-5 text-blue-500"></i>聯絡電話：
+                                    <i class="fas fa-phone-alt w-5 text-blue-500"></i>店家電話：
                                     <a :href="'tel:' + activeSession.storePhone" class="text-blue-600 underline ml-1 font-mono hover:text-blue-800 transition-colors">{{ activeSession.storePhone }}</a>
                                 </span>
                             </div>
@@ -521,7 +521,7 @@
                         <input v-model="tempGeminiKey" type="password" placeholder="貼上 AIzaSy..." class="sketch-input w-full text-sm font-mono">
                     </div>
 
-                    <div v-if="isConfigured" class="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div v-if="isConfigured && isAdmin" class="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
                         <label class="block text-sm font-bold mb-2 text-gray-700">更新 Gemini API Key (AI 辨識金鑰)</label>
                         <div class="flex gap-2">
                             <input v-model="tempGeminiKey" type="password" placeholder="貼上新的 AIzaSy... 以覆蓋" class="sketch-input flex-1 text-sm font-mono">
@@ -683,7 +683,7 @@
                         onAuthStateChanged(auth, (user) => {
                             if (user) {
                                 setupRealtimeListeners();
-                                loading.value = false;
+                                // 移除這裡的 loading.value = false; 讓監聽器接到資料後再關閉轉圈圈
                             }
                         });
                     } catch(e) {
@@ -701,7 +701,17 @@
                             adminSession.storeName = activeSession.storeName;
                             adminSession.organizer = activeSession.organizer;
                             adminSession.deadline = activeSession.deadline;
+                        } else {
+                            // 若無開團資料，清空當前狀態
+                            activeSession.storeName = '';
+                            activeSession.organizer = '';
+                            activeSession.deadline = '';
+                            activeSession.storePhone = '';
                         }
+                        loading.value = false; // 接到第一筆資料後，才正式關閉載入畫面
+                    }, (error) => {
+                        loading.value = false;
+                        showMsg('讀取開團資料失敗', 'error');
                     });
 
                     // 2. 監聽所有店家菜單與電話
@@ -1012,13 +1022,14 @@
                     } catch (e) { showMsg('複製失敗，請手動全選複製', 'error'); }
                 };
 
+                const isAdmin = ref(false); // 新增：判斷是否為管理員
                 const checkAdminPassword = () => {
-                    if (adminPassword.value === '1234') { showPasswordModal.value = false; adminPassword.value = ''; currentView.value = 'admin'; } 
+                    if (adminPassword.value === '1234') { showPasswordModal.value = false; adminPassword.value = ''; currentView.value = 'admin'; isAdmin.value = true; } 
                     else { showMsg('密碼錯誤！請重新輸入', 'error'); adminPassword.value = ''; }
                 };
 
                 return {
-                    currentView, loading, loadingMsg, showSettings, 
+                    currentView, loading, loadingMsg, showSettings, isAdmin,
                     isConfigured, tempFirebaseConfig, tempGeminiKey, geminiKey,
                     cart, userName, cartTotalQty, cartTotalPrice,
                     showPasswordModal, adminPassword, checkAdminPassword, confirmModal,

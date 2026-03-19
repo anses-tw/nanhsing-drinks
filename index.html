@@ -451,7 +451,7 @@
                         <div>
                             <label class="block text-sm font-bold mb-2 text-gray-700">冰塊 <span class="text-xs font-normal text-gray-400">(選填)</span></label>
                             <div class="flex flex-wrap gap-2">
-                                <button v-for="i in ['正常冰', '少冰', '微冰', '去冰', '完全去冰', '溫', '熱']" :key="i" @click="itemOptions.ice = itemOptions.ice === i ? '' : i" :class="itemOptions.ice === i ? 'bg-blue-500 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200'" class="px-3 py-1.5 rounded-lg text-sm border-2 font-medium transition-all active:scale-95">{{ i }}</button>
+                                <button v-for="i in ['正常冰', '少冰', '微冰', '去冰', '溫', '熱']" :key="i" @click="itemOptions.ice = itemOptions.ice === i ? '' : i" :class="itemOptions.ice === i ? 'bg-blue-500 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200'" class="px-3 py-1.5 rounded-lg text-sm border-2 font-medium transition-all active:scale-95">{{ i }}</button>
                             </div>
                         </div>
 

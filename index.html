@@ -583,7 +583,8 @@
                             <input :value="shareUrl" readonly class="w-full text-xs bg-transparent text-gray-500 font-mono outline-none px-2 py-1 truncate">
                             <button @click="copyShareUrl" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-bold transition-colors whitespace-nowrap">複製</button>
                         </div>
-                        <p class="text-xs text-center text-gray-500 mb-2">分享連結已包含您的資料庫位置，同事打開就能直接用！</p>
+                        <p class="text-xs text-center text-green-600 font-bold mb-2"><i class="fas fa-shield-alt mr-1"></i>資安保護中：此連結已自動隱藏您的 AI 金鑰</p>
+                        <p class="text-xs text-center text-gray-500">分享連結僅包含資料庫位置，同事打開就能直接點餐！</p>
                     </div>
 
                     <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
@@ -708,12 +709,13 @@
                             catch (e) { decodedStr = atob(configParam); } 
                             
                             const decoded = JSON.parse(decodedStr);
-                            if (decoded.fb && decoded.gm) {
+                            // 💡 資安修正：不再強制要求檢查 decoded.gm，因為分享連結已經拿掉它了
+                            if (decoded.fb) {
                                 configStr = JSON.stringify(decoded.fb);
-                                gKey = decoded.gm;
+                                gKey = decoded.gm || localStorage.getItem('office_eats_gemini_key') || ''; // 優先保留本機舊有的金鑰
                                 uName = decoded.unit || '';
                                 localStorage.setItem('office_eats_fb_config', configStr);
-                                localStorage.setItem('office_eats_gemini_key', gKey);
+                                if(gKey) localStorage.setItem('office_eats_gemini_key', gKey);
                                 localStorage.setItem('office_eats_unit_name', uName);
                                 window.history.replaceState({}, document.title, window.location.pathname);
                             }
@@ -1146,9 +1148,9 @@
                 const shareUrl = computed(() => {
                     if(!isConfigured.value) return '';
                     const configStr = localStorage.getItem('office_eats_fb_config');
-                    const gmKey = localStorage.getItem('office_eats_gemini_key');
                     const uName = localStorage.getItem('office_eats_unit_name') || '';
-                    const payload = { fb: JSON.parse(configStr), gm: gmKey, unit: uName };
+                    // 💡 核心資安升級：打包的 payload 徹底移除 gm (Gemini Key)
+                    const payload = { fb: JSON.parse(configStr), unit: uName };
                     return `${window.location.href.split('?')[0]}?config=${btoa(encodeURIComponent(JSON.stringify(payload)))}`;
                 });
                 

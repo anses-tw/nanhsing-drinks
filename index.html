@@ -279,13 +279,13 @@
                             <h3 class="font-bold text-xl mb-4 text-gray-800"><i class="fas fa-database mr-2 text-blue-500"></i>STEP 2. 菜單庫建檔管理</h3>
                             <p class="text-sm text-gray-600 mb-4">您可以預先建置常喝的飲料店菜單。資料儲存於 Firebase。</p>
 
-                            <!-- 修改：加入電話欄位 -->
+                            <!-- 修改：改為垂直排列，徹底解決按鈕重疊問題 -->
                             <div class="mb-4 p-4 bg-white border border-gray-300 rounded-lg shadow-inner">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-4">
                                     <div>
                                         <label class="block text-sm font-bold mb-2 text-gray-700">正在編輯的店家名稱 <span class="text-red-500">*</span></label>
                                         <div class="flex gap-2">
-                                            <input v-model="editStoreName" type="text" placeholder="例如：50嵐..." class="sketch-input flex-1">
+                                            <input v-model="editStoreName" type="text" placeholder="例如：50嵐..." class="sketch-input flex-1 min-w-0">
                                             <button @click="loadStoreMenuForEdit" :disabled="!editStoreName || !allStores.includes(editStoreName)" class="sketch-btn sketch-btn-secondary px-3 py-1 text-sm whitespace-nowrap disabled:opacity-50">載入舊資料</button>
                                         </div>
                                     </div>
@@ -662,7 +662,12 @@
                     
                     if (configParam) {
                         try {
-                            const decoded = JSON.parse(atob(configParam));
+                            // 修正：支援中文解碼，解決含中文字元導致當機的問題
+                            let decodedStr = '';
+                            try { decodedStr = decodeURIComponent(atob(configParam)); } 
+                            catch (e) { decodedStr = atob(configParam); } // 兼容舊版純英文格式
+                            
+                            const decoded = JSON.parse(decodedStr);
                             if (decoded.fb && decoded.gm) {
                                 configStr = JSON.stringify(decoded.fb);
                                 gKey = decoded.gm;
@@ -1042,8 +1047,10 @@
                     const gmKey = localStorage.getItem('office_eats_gemini_key');
                     const uName = localStorage.getItem('office_eats_unit_name') || '';
                     const payload = { fb: JSON.parse(configStr), gm: gmKey, unit: uName };
-                    return `${window.location.href.split('?')[0]}?config=${btoa(JSON.stringify(payload))}`;
+                    // 修正：加入 encodeURIComponent 以支援中文字元加密，避免系統死機
+                    return `${window.location.href.split('?')[0]}?config=${btoa(encodeURIComponent(JSON.stringify(payload)))}`;
                 });
+                
                 const qrCodeUrl = computed(() => shareUrl.value ? `https://quickchart.io/qr?text=${encodeURIComponent(shareUrl.value)}&size=300&margin=1` : '');
                 const copyShareUrl = async () => {
                     try { 

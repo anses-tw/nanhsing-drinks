@@ -114,6 +114,11 @@
                             <div v-if="activeSession.storeName" class="mt-3 sm:mt-0 flex flex-col gap-1 text-sm font-bold text-gray-700 bg-white px-4 py-2 rounded-lg border border-teal-100 shadow-sm w-full sm:w-auto">
                                 <span class="flex items-center"><i class="fas fa-user-circle w-5 text-teal-500"></i>發起人：<span class="text-teal-700 ml-1">{{ activeSession.organizer || '未填寫' }}</span></span>
                                 <span class="flex items-center"><i class="fas fa-clock w-5 text-red-400"></i>結單時間：<span class="text-red-500 ml-1">{{ activeSession.deadline || '未填寫' }}</span></span>
+                                <!-- 新增：顯示店家電話 -->
+                                <span v-if="activeSession.storePhone" class="flex items-center">
+                                    <i class="fas fa-phone-alt w-5 text-blue-500"></i>聯絡電話：
+                                    <a :href="'tel:' + activeSession.storePhone" class="text-blue-600 underline ml-1 font-mono hover:text-blue-800 transition-colors">{{ activeSession.storePhone }}</a>
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -274,11 +279,20 @@
                             <h3 class="font-bold text-xl mb-4 text-gray-800"><i class="fas fa-database mr-2 text-blue-500"></i>STEP 2. 菜單庫建檔管理</h3>
                             <p class="text-sm text-gray-600 mb-4">您可以預先建置常喝的飲料店菜單。資料儲存於 Firebase。</p>
 
+                            <!-- 修改：加入電話欄位 -->
                             <div class="mb-4 p-4 bg-white border border-gray-300 rounded-lg shadow-inner">
-                                <label class="block text-sm font-bold mb-2 text-gray-700">正在編輯的店家名稱</label>
-                                <div class="flex gap-2">
-                                    <input v-model="editStoreName" type="text" placeholder="例如：50嵐、麻古茶坊..." class="sketch-input flex-1">
-                                    <button @click="loadStoreMenuForEdit" :disabled="!editStoreName || !allStores.includes(editStoreName)" class="sketch-btn sketch-btn-secondary px-4 text-sm whitespace-nowrap disabled:opacity-50">載入舊資料</button>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-bold mb-2 text-gray-700">正在編輯的店家名稱 <span class="text-red-500">*</span></label>
+                                        <div class="flex gap-2">
+                                            <input v-model="editStoreName" type="text" placeholder="例如：50嵐..." class="sketch-input flex-1">
+                                            <button @click="loadStoreMenuForEdit" :disabled="!editStoreName || !allStores.includes(editStoreName)" class="sketch-btn sketch-btn-secondary px-3 py-1 text-sm whitespace-nowrap disabled:opacity-50">載入舊資料</button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold mb-2 text-gray-700">店家電話 (選填)</label>
+                                        <input v-model="editStorePhone" type="tel" placeholder="例如：02-23456789" class="sketch-input w-full font-mono">
+                                    </div>
                                 </div>
                             </div>
 
@@ -507,6 +521,14 @@
                         <input v-model="tempGeminiKey" type="password" placeholder="貼上 AIzaSy..." class="sketch-input w-full text-sm font-mono">
                     </div>
 
+                    <div v-if="isConfigured" class="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <label class="block text-sm font-bold mb-2 text-gray-700">更新 Gemini API Key (AI 辨識金鑰)</label>
+                        <div class="flex gap-2">
+                            <input v-model="tempGeminiKey" type="password" placeholder="貼上新的 AIzaSy... 以覆蓋" class="sketch-input flex-1 text-sm font-mono">
+                            <button @click="updateGeminiKey" class="sketch-btn sketch-btn-primary px-3 py-1 text-sm whitespace-nowrap">更新</button>
+                        </div>
+                    </div>
+
                     <div v-if="isConfigured" class="border-t-2 border-dashed border-gray-200 pt-5 mb-6">
                         <h4 class="font-bold mb-3 text-sm text-gray-800 flex items-center"><i class="fas fa-share-alt mr-2 text-blue-500"></i>分享連結給同事</h4>
                         <div class="flex items-center space-x-2 mb-4 bg-white p-1 rounded-lg border border-gray-300">
@@ -570,12 +592,14 @@
                 const basePath = 'artifacts/nanhsing-drinks/public/data'; // 統一儲存路徑
 
                 // 業務資料
-                const activeSession = reactive({ storeName: '', organizer: '', deadline: '' });
+                const activeSession = reactive({ storeName: '', organizer: '', deadline: '', storePhone: '' });
                 const allStores = ref([]);
                 const storeMenusObj = ref({}); // { storeName: [items...] }
+                const storePhonesObj = ref({}); // 新增：用來記錄每個店家的電話
                 
                 const adminSession = reactive({ storeName: '', organizer: '', deadline: '' });
                 const editStoreName = ref('');
+                const editStorePhone = ref(''); // 新增：正在編輯的電話
                 const isDrawing = ref(false);
 
                 const activeItem = ref(null);
@@ -646,7 +670,7 @@
                     }
                 });
 
-                // Firebase 核心初始化與監聽 (真正的即時同步！)
+                // Firebase 核心初始化與監聽
                 const initFirebase = async (config) => {
                     loading.value = true; loadingMsg.value = "連線至資料庫中...";
                     try {
@@ -680,39 +704,40 @@
                         }
                     });
 
-                    // 2. 監聽所有店家菜單
+                    // 2. 監聽所有店家菜單與電話
                     onSnapshot(collection(db, basePath, "storeMenus"), (snapshot) => {
                         const stores = [];
                         const menus = {};
+                        const phones = {}; // 新增收集電話
                         snapshot.forEach((doc) => {
                             stores.push(doc.id);
-                            menus[doc.id] = doc.data().items || [];
+                            const data = doc.data();
+                            menus[doc.id] = data.items || [];
+                            phones[doc.id] = data.phone || ''; 
                         });
                         allStores.value = stores;
                         storeMenusObj.value = menus;
+                        storePhonesObj.value = phones;
                     });
 
                     // 3. 監聽即時訂單
                     onSnapshot(collection(db, basePath, "orders"), (snapshot) => {
                         let tempOrders = [];
                         snapshot.forEach(doc => { tempOrders.push({ id: doc.id, ...doc.data() }); });
-                        // 在前端排序：最新的在最上面
                         existingOrders.value = tempOrders.sort((a, b) => b.timestamp - a.timestamp);
                     });
                 };
 
                 const enterPreviewMode = () => {
                     isPreviewMode.value = true;
-                    activeSession.storeName = '示範飲料店'; activeSession.organizer = '值日生'; activeSession.deadline = '15:30';
+                    activeSession.storeName = '示範飲料店'; activeSession.organizer = '值日生'; activeSession.deadline = '15:30'; activeSession.storePhone = '02-12345678';
                     allStores.value = ['50嵐', '可不可', '示範飲料店'];
-                    storeMenusObj.value = {
-                        '示範飲料店': [ { id: 1, name: '招牌珍珠奶茶', price: 50, category: '茶飲' }, { id: 2, name: '四季春青茶', price: 35, category: '純茶' } ]
-                    };
+                    storeMenusObj.value = { '示範飲料店': [ { id: 1, name: '招牌珍珠奶茶', price: 50, category: '茶飲' } ] };
+                    storePhonesObj.value = { '示範飲料店': '02-12345678' };
                     existingOrders.value = [ { id: 'test1', user: '小明', item: '招牌珍珠奶茶', qty: 1, note: '半糖, 少冰', item_price: 50, paid: true, received: false } ];
                     showMsg('已進入預覽模式 (此模式下資料不會真的儲存喔！)', 'info');
                 };
 
-                // ⭐ 抽抽樂
                 const luckyDraw = () => {
                     if (allStores.value.length === 0) return showMsg('目前還沒有儲存任何店家喔！', 'error');
                     if (isDrawing.value) return;
@@ -727,15 +752,23 @@
                 // ⭐ 發起新團購 (Firebase 寫入)
                 const startNewSession = async () => {
                     if (!adminSession.storeName) return showMsg('請選擇一家店！', 'error');
+                    
+                    const phoneToSave = storePhonesObj.value[adminSession.storeName] || ''; // 抓取該店家的電話
+                    
                     if (!isConfigured.value) {
-                        Object.assign(activeSession, adminSession); existingOrders.value = []; currentView.value = 'menu';
+                        Object.assign(activeSession, adminSession);
+                        activeSession.storePhone = phoneToSave;
+                        existingOrders.value = []; currentView.value = 'menu';
                         return showMsg('【預覽模式】新團購發起成功！');
                     }
                     loading.value = true; loadingMsg.value = '正在發布並清空舊訂單...';
                     try {
-                        // 1. 更新當前狀態
+                        // 1. 更新當前狀態 (加入電話)
                         await setDoc(doc(db, basePath, "activeSession", "current"), {
-                            storeName: adminSession.storeName, organizer: adminSession.organizer, deadline: adminSession.deadline
+                            storeName: adminSession.storeName, 
+                            organizer: adminSession.organizer, 
+                            deadline: adminSession.deadline,
+                            storePhone: phoneToSave
                         });
                         // 2. 清空舊訂單
                         const orderDocs = await getDocs(collection(db, basePath, "orders"));
@@ -779,7 +812,6 @@
                 const cartTotalQty = computed(() => cart.value.reduce((acc, item) => acc + item.qty, 0));
                 const cartTotalPrice = computed(() => cart.value.reduce((acc, item) => acc + (item.price * item.qty), 0));
 
-                // ⭐ 送出訂單 (Firebase)
                 const submitOrder = async () => {
                     if (!userName.value.trim()) return showMsg('請輸入您的暱稱喔！', 'error');
                     if (!isConfigured.value) {
@@ -824,7 +856,6 @@
                     reader.readAsDataURL(file);
                 };
 
-                // ⭐ 透過前端直接呼叫 Gemini API (拔除 GAS 依賴)
                 const analyzeMenuDirectly = async (base64Image) => {
                     if (!geminiKey.value) { showMsg('請先在設定中填入 Gemini API Key', 'error'); aiProcessing.value = false; if(fileInput.value) fileInput.value.value = ''; return; }
                     try {
@@ -848,7 +879,7 @@
                     }
                 };
 
-                // ⭐ 儲存菜單到 Firebase
+                // ⭐ 儲存菜單到 Firebase (一併存入電話)
                 const saveMenuToLibrary = async () => {
                     const validItems = newMenuItems.value.filter(i => i.name && i.price);
                     if(validItems.length === 0) return showMsg('至少需要輸入一個完整的品項', 'error');
@@ -858,14 +889,19 @@
                         showMsg('【預覽模式】菜單已存入庫。');
                         if (!allStores.value.includes(editStoreName.value)) allStores.value.push(editStoreName.value);
                         storeMenusObj.value[editStoreName.value] = validItems;
-                        newMenuItems.value = []; editStoreName.value = ''; return;
+                        storePhonesObj.value[editStoreName.value] = editStorePhone.value; // 存入電話
+                        newMenuItems.value = []; editStoreName.value = ''; editStorePhone.value = ''; return;
                     }
 
                     loading.value = true; loadingMsg.value = '正在上傳至 Firebase 菜單庫...';
                     try {
-                        await setDoc(doc(db, basePath, "storeMenus", editStoreName.value), { items: validItems });
+                        // 更新：一併寫入 phone 欄位
+                        await setDoc(doc(db, basePath, "storeMenus", editStoreName.value), { 
+                            items: validItems,
+                            phone: editStorePhone.value || '' 
+                        });
                         showMsg('已成功儲存至菜單庫！');
-                        newMenuItems.value = []; editStoreName.value = '';
+                        newMenuItems.value = []; editStoreName.value = ''; editStorePhone.value = '';
                     } catch (e) { showMsg('儲存失敗', 'error'); } 
                     finally { loading.value = false; }
                 };
@@ -874,13 +910,14 @@
                     if(!isConfigured.value) {
                         allStores.value = allStores.value.filter(s => s !== editStoreName.value);
                         delete storeMenusObj.value[editStoreName.value];
-                        showMsg('【預覽模式】店家已刪除'); editStoreName.value = ''; newMenuItems.value = []; return;
+                        delete storePhonesObj.value[editStoreName.value];
+                        showMsg('【預覽模式】店家已刪除'); editStoreName.value = ''; editStorePhone.value = ''; newMenuItems.value = []; return;
                     }
                     loading.value = true;
                     try {
                         await deleteDoc(doc(db, basePath, "storeMenus", editStoreName.value));
                         showMsg('店家已徹底刪除');
-                        editStoreName.value = ''; newMenuItems.value = [];
+                        editStoreName.value = ''; editStorePhone.value = ''; newMenuItems.value = [];
                     } catch(e) { showMsg('刪除失敗', 'error'); } 
                     finally { loading.value = false; }
                 }
@@ -888,20 +925,26 @@
                 const loadStoreMenuForEdit = () => {
                     const items = storeMenusObj.value[editStoreName.value];
                     if(items && items.length > 0) {
-                        newMenuItems.value = JSON.parse(JSON.stringify(items)); // 拷貝
+                        newMenuItems.value = JSON.parse(JSON.stringify(items));
+                        // 載入舊資料時，也把電話拉回來
+                        editStorePhone.value = storePhonesObj.value[editStoreName.value] || '';
                         showMsg(`已載入 ${editStoreName.value} 的舊資料，可直接修改。`);
                     } else {
                         showMsg('此店家目前沒有資料', 'info');
                     }
                 }
 
+                // ⭐ 產生訂單文字 (一併加入電話)
                 const generateOrderText = computed(() => {
                     if (existingOrders.value.length === 0) return '目前尚無訂單資料可以提供給店家。';
                     const summary = {};
                     existingOrders.value.forEach(o => { const key = `${o.item} ${o.note ? '('+o.note+')' : ''}`; summary[key] = (summary[key] || 0) + Number(o.qty); });
+                    
                     let text = `📅 飲料團購清單`;
                     if (activeSession.storeName) text += ` (${activeSession.storeName})`;
+                    if (activeSession.storePhone) text += `\n📞 訂購電話: ${activeSession.storePhone}`; // 新增這行
                     text += `\n───────────────────\n`;
+                    
                     for (const [name, qty] of Object.entries(summary)) text += `☑ ${name} x ${qty}\n`;
                     const totalItems = existingOrders.value.reduce((a,b)=>a+Number(b.qty),0);
                     const totalPrice = existingOrders.value.reduce((a,b)=>a+Number(b.item_price || 0),0);
@@ -918,9 +961,8 @@
                     } catch (e) { showMsg('複製失敗，請手動全選複製', 'error'); }
                 };
 
-                // ⭐ 狀態切換 (Firebase Update)
                 const toggleOrderStatus = async (order, field) => {
-                    order[field] = !order[field]; // 前端樂觀更新
+                    order[field] = !order[field];
                     if (!isConfigured.value) return showMsg(`【預覽模式】狀態已更新`, 'success');
                     try { await updateDoc(doc(db, basePath, "orders", order.id), { [field]: order[field] }); } 
                     catch (e) { order[field] = !order[field]; showMsg('狀態更新失敗，請檢查網路', 'error'); }
@@ -929,23 +971,24 @@
                 const saveSettings = () => {
                     if (!tempFirebaseConfig.value.trim() || !tempFirebaseConfig.value.includes('apiKey')) return showMsg('Config 格式錯誤，找不到 apiKey', 'error');
                     if (!tempGeminiKey.value.trim()) return showMsg('請輸入 Gemini API Key', 'error');
-                    
                     try {
-                        // 嘗試將使用者貼上的 JS Object string 轉成合法 JSON
-                        const jsonStr = tempFirebaseConfig.value
-                            .replace(/([{,]\s*)([A-Za-z0-9_]+)\s*:/g, '$1"$2":')
-                            .replace(/'/g, '"');
+                        const jsonStr = tempFirebaseConfig.value.replace(/([{,]\s*)([A-Za-z0-9_]+)\s*:/g, '$1"$2":').replace(/'/g, '"');
                         const configObj = JSON.parse(jsonStr);
-                        
                         localStorage.setItem('office_eats_fb_config', JSON.stringify(configObj));
                         localStorage.setItem('office_eats_gemini_key', tempGeminiKey.value);
                         showSettings.value = false;
-                        
                         showMsg('設定儲存成功！正在重整網頁以套用新連線...');
                         setTimeout(() => window.location.reload(), 1500);
-                    } catch (e) {
-                        showMsg('Config 格式無法解析，請確認複製了完整的大括號內容', 'error');
-                    }
+                    } catch (e) { showMsg('Config 格式無法解析，請確認複製了完整的大括號內容', 'error'); }
+                };
+
+                const updateGeminiKey = () => {
+                    if (!tempGeminiKey.value.trim()) return showMsg('請輸入新的 Gemini API Key', 'error');
+                    if (!tempGeminiKey.value.startsWith('AIza')) return showMsg('金鑰格式似乎不對 (通常以 AIza 開頭)', 'error');
+                    localStorage.setItem('office_eats_gemini_key', tempGeminiKey.value.trim());
+                    geminiKey.value = tempGeminiKey.value.trim();
+                    tempGeminiKey.value = '';
+                    showMsg('Gemini API Key 更新成功！', 'success');
                 };
 
                 const clearSettings = () => {
@@ -979,11 +1022,11 @@
                     isConfigured, tempFirebaseConfig, tempGeminiKey, geminiKey,
                     cart, userName, cartTotalQty, cartTotalPrice,
                     showPasswordModal, adminPassword, checkAdminPassword, confirmModal,
-                    activeSession, allStores, adminSession, editStoreName, isDrawing, luckyDraw, startNewSession, loadStoreMenuForEdit, saveMenuToLibrary,
+                    activeSession, allStores, adminSession, editStoreName, editStorePhone, isDrawing, luckyDraw, startNewSession, loadStoreMenuForEdit, saveMenuToLibrary,
                     activeItem, itemOptions, menuItems, openItemModal, setSize, confirmAddItem,
                     updateQty, removeFromCart, submitOrder, handleImageUpload, newMenuItems, aiProcessing, addNewEmptyItem,
                     existingOrders, generateOrderText, copyOrderText, toggleOrderStatus,
-                    saveSettings, clearSettings, shareUrl, qrCodeUrl, copyShareUrl, msgModal, fileInput, isPreviewMode, enterPreviewMode
+                    saveSettings, updateGeminiKey, clearSettings, shareUrl, qrCodeUrl, copyShareUrl, msgModal, fileInput, isPreviewMode, enterPreviewMode
                 };
             }
         }).mount('#app');

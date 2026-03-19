@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>一起減糖 續喝飲料 🤪</title>
+    <!-- 引入 Vue, Tailwind, FontAwesome -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- ⭐ 新增：引入撒紙花特效庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <style>
         :root {
@@ -114,7 +117,7 @@
                             <div v-if="activeSession.storeName" class="mt-3 sm:mt-0 flex flex-col gap-1 text-sm font-bold text-gray-700 bg-white px-4 py-2 rounded-lg border border-teal-100 shadow-sm w-full sm:w-auto">
                                 <span class="flex items-center"><i class="fas fa-user-circle w-5 text-teal-500"></i>發起人：<span class="text-teal-700 ml-1">{{ activeSession.organizer || '未填寫' }}</span></span>
                                 <span class="flex items-center"><i class="fas fa-clock w-5 text-red-400"></i>結單時間：<span class="text-red-500 ml-1">{{ activeSession.deadline || '未填寫' }}</span></span>
-                                <!-- 新增：顯示店家電話 -->
+                                <!-- 店家電話 -->
                                 <span v-if="activeSession.storePhone" class="flex items-center">
                                     <i class="fas fa-phone-alt w-5 text-blue-500"></i>店家電話：
                                     <a :href="'tel:' + activeSession.storePhone" class="text-blue-600 underline ml-1 font-mono hover:text-blue-800 transition-colors">{{ activeSession.storePhone }}</a>
@@ -245,8 +248,9 @@
                                             <option value="" disabled>請選擇店家...</option>
                                             <option v-for="store in allStores" :key="store" :value="store">{{ store }}</option>
                                         </select>
-                                        <button @click="luckyDraw" class="sketch-btn bg-yellow-400 hover:bg-yellow-500 text-yellow-900 border-2 border-yellow-600 px-4 py-2 text-lg flex items-center shadow-sm whitespace-nowrap">
-                                            <i class="fas fa-dice mr-2" :class="{'fa-spin': isDrawing}"></i>抽抽樂
+                                        <!-- 修改：觸發新的轉盤動畫 -->
+                                        <button @click="startLuckyDraw" class="sketch-btn bg-yellow-400 hover:bg-yellow-500 text-yellow-900 border-2 border-yellow-600 px-4 py-2 text-lg flex items-center shadow-sm whitespace-nowrap overflow-hidden relative group">
+                                            <i class="fas fa-dice mr-2 group-hover:rotate-180 transition-transform duration-500"></i>大轉盤
                                         </button>
                                     </div>
                                     <p v-if="allStores.length === 0" class="text-xs text-red-500 mt-1">目前菜單庫是空的，請先在下方建檔喔！</p>
@@ -268,7 +272,7 @@
                                     <span>注意：點擊發布後，系統將會自動<span class="text-red-600 underline">清空上一輪的訂單紀錄</span>，全體畫面即時更新！</span>
                                 </div>
 
-                                <button @click="startNewSession" :disabled="!adminSession.storeName || isDrawing" class="sketch-btn sketch-btn-primary w-full py-4 text-lg shadow-md flex justify-center items-center disabled:opacity-50">
+                                <button @click="startNewSession" :disabled="!adminSession.storeName || isSpinning" class="sketch-btn sketch-btn-primary w-full py-4 text-lg shadow-md flex justify-center items-center disabled:opacity-50">
                                     <i class="fas fa-bullhorn mr-2"></i>確認發布本次團購
                                 </button>
                             </div>
@@ -279,7 +283,6 @@
                             <h3 class="font-bold text-xl mb-4 text-gray-800"><i class="fas fa-database mr-2 text-blue-500"></i>STEP 2. 菜單庫建檔管理</h3>
                             <p class="text-sm text-gray-600 mb-4">您可以預先建置常喝的飲料店菜單。資料儲存於 Firebase。</p>
 
-                            <!-- 修改：改為垂直排列，徹底解決按鈕重疊問題 -->
                             <div class="mb-4 p-4 bg-white border border-gray-300 rounded-lg shadow-inner">
                                 <div class="space-y-4">
                                     <div>
@@ -414,6 +417,38 @@
                 </div>
             </transition>
         </main>
+
+        <!-- ⭐ 新增：大轉盤 Modal -->
+        <transition name="modal">
+            <div v-if="showRouletteModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black bg-opacity-70 backdrop-blur-sm" @click="!isSpinning && (showRouletteModal = false)"></div>
+                <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 relative z-10 flex flex-col items-center transform scale-100 transition-transform border-4 border-yellow-400">
+                    <h3 class="text-2xl font-black mb-6 text-gray-800 tracking-wider">
+                        <i class="fas fa-gem text-yellow-500 mr-2"></i>命運的輪盤
+                    </h3>
+                    
+                    <div class="relative w-64 h-64 md:w-80 md:h-80 drop-shadow-xl">
+                        <!-- 頂部指針 -->
+                        <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
+                            <i class="fas fa-caret-down text-6xl text-red-600 filter drop-shadow-md"></i>
+                        </div>
+                        <!-- 轉盤畫布 -->
+                        <canvas id="roulette-canvas" width="320" height="320" class="w-full h-full rounded-full border-4 border-gray-100 bg-white" :style="rouletteStyle"></canvas>
+                        <!-- 中心點裝飾 -->
+                        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full border-4 border-yellow-400 shadow-sm z-10"></div>
+                    </div>
+
+                    <div class="mt-8 h-12 flex items-center justify-center text-center">
+                        <span v-if="isSpinning" class="text-gray-400 font-bold animate-pulse tracking-widest text-lg">輪盤轉動中...</span>
+                        <span v-else class="text-3xl font-black text-red-600 drop-shadow-sm animate-bounce">🎉 {{ rouletteWinner }} 🎉</span>
+                    </div>
+
+                    <div class="mt-6 w-full flex gap-3">
+                        <button v-if="!isSpinning" @click="showRouletteModal = false" class="sketch-btn bg-yellow-400 hover:bg-yellow-500 text-yellow-900 border-2 border-yellow-600 w-full py-3 text-lg shadow-md">太棒了，就這家！</button>
+                    </div>
+                </div>
+            </div>
+        </transition>
 
         <!-- 餐點客製化 Modal -->
         <transition name="modal">
@@ -604,18 +639,24 @@
                 const tempUnitName = ref('');
                 let db = null;
                 let auth = null;
-                const basePath = 'artifacts/nanhsing-drinks/public/data'; // 統一儲存路徑
+                const basePath = 'artifacts/nanhsing-drinks/public/data'; 
 
                 // 業務資料
                 const activeSession = reactive({ storeName: '', organizer: '', deadline: '', storePhone: '' });
                 const allStores = ref([]);
-                const storeMenusObj = ref({}); // { storeName: [items...] }
-                const storePhonesObj = ref({}); // 新增：用來記錄每個店家的電話
+                const storeMenusObj = ref({});
+                const storePhonesObj = ref({});
                 
                 const adminSession = reactive({ storeName: '', organizer: '', deadline: '' });
                 const editStoreName = ref('');
-                const editStorePhone = ref(''); // 新增：正在編輯的電話
+                const editStorePhone = ref(''); 
                 const isDrawing = ref(false);
+
+                // ⭐ 轉盤相關狀態
+                const showRouletteModal = ref(false);
+                const rouletteWinner = ref('');
+                const rouletteStyle = ref('');
+                const isSpinning = ref(false);
 
                 const activeItem = ref(null);
                 const itemOptions = reactive({ size: 'L (標準)', sizeExtraPrice: 0, customExtraPrice: 0, sugar: '', ice: '', note: '' });
@@ -662,10 +703,9 @@
                     
                     if (configParam) {
                         try {
-                            // 修正：支援中文解碼，解決含中文字元導致當機的問題
                             let decodedStr = '';
                             try { decodedStr = decodeURIComponent(atob(configParam)); } 
-                            catch (e) { decodedStr = atob(configParam); } // 兼容舊版純英文格式
+                            catch (e) { decodedStr = atob(configParam); } 
                             
                             const decoded = JSON.parse(decodedStr);
                             if (decoded.fb && decoded.gm) {
@@ -689,7 +729,6 @@
                             isConfigured.value = true;
                         } catch(e) { console.error("Firebase 初始化失敗"); }
                     } else {
-                        // 若無設定，準備設定畫面
                         tempFirebaseConfig.value = "{\n  apiKey: \"...\",\n  authDomain: \"...\",\n  projectId: \"...\"\n}";
                     }
                 });
@@ -705,10 +744,7 @@
                         await signInAnonymously(auth);
                         
                         onAuthStateChanged(auth, (user) => {
-                            if (user) {
-                                setupRealtimeListeners();
-                                // 移除這裡的 loading.value = false; 讓監聽器接到資料後再關閉轉圈圈
-                            }
+                            if (user) setupRealtimeListeners();
                         });
                     } catch(e) {
                         showMsg('Firebase 連線失敗，請檢查 Config 格式是否正確', 'error');
@@ -716,9 +752,7 @@
                     }
                 };
 
-                // 設定即時監聽器
                 const setupRealtimeListeners = () => {
-                    // 1. 監聽目前開團狀態
                     onSnapshot(doc(db, basePath, "activeSession", "current"), (docSnap) => {
                         if (docSnap.exists()) {
                             Object.assign(activeSession, docSnap.data());
@@ -726,23 +760,15 @@
                             adminSession.organizer = activeSession.organizer;
                             adminSession.deadline = activeSession.deadline;
                         } else {
-                            // 若無開團資料，清空當前狀態
-                            activeSession.storeName = '';
-                            activeSession.organizer = '';
-                            activeSession.deadline = '';
-                            activeSession.storePhone = '';
+                            activeSession.storeName = ''; activeSession.organizer = ''; activeSession.deadline = ''; activeSession.storePhone = '';
                         }
-                        loading.value = false; // 接到第一筆資料後，才正式關閉載入畫面
+                        loading.value = false; 
                     }, (error) => {
-                        loading.value = false;
-                        showMsg('讀取開團資料失敗', 'error');
+                        loading.value = false; showMsg('讀取開團資料失敗', 'error');
                     });
 
-                    // 2. 監聽所有店家菜單與電話
                     onSnapshot(collection(db, basePath, "storeMenus"), (snapshot) => {
-                        const stores = [];
-                        const menus = {};
-                        const phones = {}; // 新增收集電話
+                        const stores = []; const menus = {}; const phones = {};
                         snapshot.forEach((doc) => {
                             stores.push(doc.id);
                             const data = doc.data();
@@ -754,7 +780,6 @@
                         storePhonesObj.value = phones;
                     });
 
-                    // 3. 監聽即時訂單
                     onSnapshot(collection(db, basePath, "orders"), (snapshot) => {
                         let tempOrders = [];
                         snapshot.forEach(doc => { tempOrders.push({ id: doc.id, ...doc.data() }); });
@@ -765,29 +790,113 @@
                 const enterPreviewMode = () => {
                     isPreviewMode.value = true;
                     activeSession.storeName = '示範飲料店'; activeSession.organizer = '值日生'; activeSession.deadline = '15:30'; activeSession.storePhone = '02-12345678';
-                    allStores.value = ['50嵐', '可不可', '示範飲料店'];
+                    allStores.value = ['50嵐', '可不可', '清心福全', '迷客夏', '示範飲料店'];
                     storeMenusObj.value = { '示範飲料店': [ { id: 1, name: '招牌珍珠奶茶', price: 50, category: '茶飲' } ] };
                     storePhonesObj.value = { '示範飲料店': '02-12345678' };
                     existingOrders.value = [ { id: 'test1', user: '小明', item: '招牌珍珠奶茶', qty: 1, note: '半糖, 少冰', item_price: 50, paid: true, received: false } ];
                     showMsg('已進入預覽模式 (此模式下資料不會真的儲存喔！)', 'info');
                 };
 
-                const luckyDraw = () => {
+                // ⭐ 全新：超華麗大轉盤邏輯
+                const drawRouletteCanvas = () => {
+                    const canvas = document.getElementById('roulette-canvas');
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    const width = canvas.width; const height = canvas.height;
+                    const centerX = width / 2; const centerY = height / 2;
+                    const radius = centerX - 6; // 留邊框空間
+                    const stores = allStores.value;
+                    const numSlices = stores.length;
+                    const sliceAngle = (2 * Math.PI) / numSlices;
+                    // 豐富的馬卡龍色彩
+                    const colors = ['#f87171', '#fb923c', '#fbbf24', '#a3e635', '#34d399', '#2dd4bf', '#38bdf8', '#818cf8', '#a78bfa', '#f472b6'];
+
+                    ctx.clearRect(0, 0, width, height);
+                    
+                    for (let i = 0; i < numSlices; i++) {
+                        // 畫扇形
+                        ctx.beginPath();
+                        ctx.moveTo(centerX, centerY);
+                        ctx.arc(centerX, centerY, radius, i * sliceAngle, (i + 1) * sliceAngle);
+                        ctx.fillStyle = colors[i % colors.length];
+                        ctx.fill();
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.stroke();
+
+                        // 寫文字
+                        ctx.save();
+                        ctx.translate(centerX, centerY);
+                        ctx.rotate(i * sliceAngle + sliceAngle / 2);
+                        ctx.textAlign = 'right';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = 'bold 18px "Noto Sans TC", sans-serif';
+                        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                        ctx.shadowBlur = 4;
+                        ctx.shadowOffsetX = 1;
+                        ctx.shadowOffsetY = 1;
+                        
+                        // 文字過長處理
+                        let text = stores[i];
+                        if(text.length > 7) text = text.substring(0, 6) + '...';
+                        ctx.fillText(text, radius - 20, 6);
+                        ctx.restore();
+                    }
+                };
+
+                const startLuckyDraw = () => {
                     if (allStores.value.length === 0) return showMsg('目前還沒有儲存任何店家喔！', 'error');
-                    if (isDrawing.value) return;
-                    isDrawing.value = true;
-                    let counter = 0; const maxBlinks = 15;
-                    const interval = setInterval(() => {
-                        adminSession.storeName = allStores.value[Math.floor(Math.random() * allStores.value.length)];
-                        if (++counter >= maxBlinks) { clearInterval(interval); isDrawing.value = false; showMsg('🎉 決定就是這家了！'); }
+                    if (isSpinning.value) return;
+
+                    showRouletteModal.value = true;
+                    rouletteWinner.value = '';
+                    // 瞬間重置角度
+                    rouletteStyle.value = 'transform: rotate(0deg); transition: none;';
+                    isSpinning.value = true;
+
+                    // 稍微延遲以確保 Modal 渲染完成，再畫布與開始旋轉
+                    setTimeout(() => {
+                        drawRouletteCanvas();
+                        
+                        setTimeout(() => {
+                            const numSlices = allStores.value.length;
+                            // 隨機決定中獎店家
+                            const winnerIndex = Math.floor(Math.random() * numSlices);
+                            const targetStore = allStores.value[winnerIndex];
+                            
+                            // 計算要旋轉的角度
+                            const sliceAngle = 360 / numSlices;
+                            // 轉盤標準 0 度在右邊(3點鐘)，指針在上面(-90度/270度)。
+                            // 我們要把目標扇形的中心轉到指針的位置。加上 360 * 6 讓它多轉 6 圈。
+                            const targetDegree = 270 - (winnerIndex * sliceAngle + sliceAngle / 2) + (360 * 6);
+                            
+                            // 套用 CSS 動畫 (cubic-bezier 創造先快後慢的物理效果)
+                            rouletteStyle.value = `transform: rotate(${targetDegree}deg); transition: transform 4s cubic-bezier(0.1, 0.7, 0.1, 1);`;
+
+                            // 等待 4 秒鐘動畫結束
+                            setTimeout(() => {
+                                isSpinning.value = false;
+                                rouletteWinner.value = targetStore;
+                                adminSession.storeName = targetStore; // 自動填入表單
+                                
+                                // 觸發全螢幕撒紙花特效！
+                                if (typeof confetti !== 'undefined') {
+                                    confetti({
+                                        particleCount: 150,
+                                        spread: 80,
+                                        origin: { y: 0.5 },
+                                        colors: ['#f59e0b', '#0d9488', '#ef4444', '#3b82f6', '#8b5cf6']
+                                    });
+                                }
+                            }, 4000);
+                        }, 50);
                     }, 100);
                 };
 
-                // ⭐ 發起新團購 (Firebase 寫入)
                 const startNewSession = async () => {
                     if (!adminSession.storeName) return showMsg('請選擇一家店！', 'error');
                     
-                    const phoneToSave = storePhonesObj.value[adminSession.storeName] || ''; // 抓取該店家的電話
+                    const phoneToSave = storePhonesObj.value[adminSession.storeName] || ''; 
                     
                     if (!isConfigured.value) {
                         Object.assign(activeSession, adminSession);
@@ -797,14 +906,12 @@
                     }
                     loading.value = true; loadingMsg.value = '正在發布並清空舊訂單...';
                     try {
-                        // 1. 更新當前狀態 (加入電話)
                         await setDoc(doc(db, basePath, "activeSession", "current"), {
                             storeName: adminSession.storeName, 
                             organizer: adminSession.organizer, 
                             deadline: adminSession.deadline,
                             storePhone: phoneToSave
                         });
-                        // 2. 清空舊訂單
                         const orderDocs = await getDocs(collection(db, basePath, "orders"));
                         const deletePromises = [];
                         orderDocs.forEach(d => deletePromises.push(deleteDoc(d.ref)));
@@ -816,7 +923,6 @@
                     finally { loading.value = false; }
                 };
 
-                // 餐點客製化
                 const openItemModal = (item) => {
                     activeItem.value = item;
                     itemOptions.size = 'L (標準)'; itemOptions.sizeExtraPrice = 0; itemOptions.customExtraPrice = 0;
@@ -913,7 +1019,6 @@
                     }
                 };
 
-                // ⭐ 儲存菜單到 Firebase (一併存入電話)
                 const saveMenuToLibrary = async () => {
                     const validItems = newMenuItems.value.filter(i => i.name && i.price);
                     if(validItems.length === 0) return showMsg('至少需要輸入一個完整的品項', 'error');
@@ -923,13 +1028,12 @@
                         showMsg('【預覽模式】菜單已存入庫。');
                         if (!allStores.value.includes(editStoreName.value)) allStores.value.push(editStoreName.value);
                         storeMenusObj.value[editStoreName.value] = validItems;
-                        storePhonesObj.value[editStoreName.value] = editStorePhone.value; // 存入電話
+                        storePhonesObj.value[editStoreName.value] = editStorePhone.value; 
                         newMenuItems.value = []; editStoreName.value = ''; editStorePhone.value = ''; return;
                     }
 
                     loading.value = true; loadingMsg.value = '正在上傳至 Firebase 菜單庫...';
                     try {
-                        // 更新：一併寫入 phone 欄位
                         await setDoc(doc(db, basePath, "storeMenus", editStoreName.value), { 
                             items: validItems,
                             phone: editStorePhone.value || '' 
@@ -960,7 +1064,6 @@
                     const items = storeMenusObj.value[editStoreName.value];
                     if(items && items.length > 0) {
                         newMenuItems.value = JSON.parse(JSON.stringify(items));
-                        // 載入舊資料時，也把電話拉回來
                         editStorePhone.value = storePhonesObj.value[editStoreName.value] || '';
                         showMsg(`已載入 ${editStoreName.value} 的舊資料，可直接修改。`);
                     } else {
@@ -968,7 +1071,6 @@
                     }
                 }
 
-                // ⭐ 產生訂單文字 (一併加入電話)
                 const generateOrderText = computed(() => {
                     if (existingOrders.value.length === 0) return '目前尚無訂單資料可以提供給店家。';
                     const summary = {};
@@ -976,7 +1078,7 @@
                     
                     let text = `📅 飲料團購清單`;
                     if (activeSession.storeName) text += ` (${activeSession.storeName})`;
-                    if (activeSession.storePhone) text += `\n📞 訂購電話: ${activeSession.storePhone}`; // 新增這行
+                    if (activeSession.storePhone) text += `\n📞 訂購電話: ${activeSession.storePhone}`; 
                     text += `\n───────────────────\n`;
                     
                     for (const [name, qty] of Object.entries(summary)) text += `☑ ${name} x ${qty}\n`;
@@ -1047,7 +1149,6 @@
                     const gmKey = localStorage.getItem('office_eats_gemini_key');
                     const uName = localStorage.getItem('office_eats_unit_name') || '';
                     const payload = { fb: JSON.parse(configStr), gm: gmKey, unit: uName };
-                    // 修正：加入 encodeURIComponent 以支援中文字元加密，避免系統死機
                     return `${window.location.href.split('?')[0]}?config=${btoa(encodeURIComponent(JSON.stringify(payload)))}`;
                 });
                 
@@ -1059,7 +1160,7 @@
                     } catch (e) { showMsg('複製失敗，請手動全選複製', 'error'); }
                 };
 
-                const isAdmin = ref(false); // 新增：判斷是否為管理員
+                const isAdmin = ref(false); 
                 const checkAdminPassword = () => {
                     if (adminPassword.value === '1234') { showPasswordModal.value = false; adminPassword.value = ''; currentView.value = 'admin'; isAdmin.value = true; } 
                     else { showMsg('密碼錯誤！請重新輸入', 'error'); adminPassword.value = ''; }
@@ -1070,10 +1171,11 @@
                     isConfigured, tempFirebaseConfig, tempGeminiKey, geminiKey, unitName, tempUnitName,
                     cart, userName, cartTotalQty, cartTotalPrice,
                     showPasswordModal, adminPassword, checkAdminPassword, confirmModal,
-                    activeSession, allStores, adminSession, editStoreName, editStorePhone, isDrawing, luckyDraw, startNewSession, loadStoreMenuForEdit, saveMenuToLibrary,
+                    activeSession, allStores, adminSession, editStoreName, editStorePhone, isDrawing, luckyDraw: startLuckyDraw, startNewSession, loadStoreMenuForEdit, saveMenuToLibrary,
                     activeItem, itemOptions, menuItems, openItemModal, setSize, confirmAddItem,
                     updateQty, removeFromCart, submitOrder, handleImageUpload, newMenuItems, aiProcessing, addNewEmptyItem,
                     existingOrders, generateOrderText, copyOrderText, toggleOrderStatus,
+                    showRouletteModal, rouletteWinner, rouletteStyle, isSpinning, startLuckyDraw,
                     saveSettings, updateGeminiKey, updateUnitName, clearSettings, shareUrl, qrCodeUrl, copyShareUrl, msgModal, fileInput, isPreviewMode, enterPreviewMode
                 };
             }

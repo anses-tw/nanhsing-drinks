@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>南興喝飲料囉</title>
+    <title>一起減糖 續喝飲料 🤪</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
@@ -63,9 +63,9 @@
         <header class="mb-6 flex justify-between items-center">
             <div class="cursor-pointer" @click="currentView = 'menu'">
                 <h1 class="text-3xl font-black tracking-wider transform -rotate-1 text-teal-700 hover:text-teal-500 transition-colors drop-shadow-sm">
-                    <i class="fas fa-glass-cheers mr-2 text-teal-600"></i>南興喝飲料囉
+                    <i class="fas fa-glass-cheers mr-2 text-teal-600"></i>一起減糖 續喝飲料 🤪
                 </h1>
-                <p class="text-sm text-gray-600 mt-1 ml-2 font-bold"><i class="fas fa-bolt text-yellow-500 mr-1"></i>Firebase 即時同步版</p>
+                <p class="text-sm text-gray-600 mt-1 ml-2 font-bold"><i class="fas fa-bolt text-yellow-500 mr-1"></i>{{ unitName || '某某某' }}的 飲料歡樂點</p>
             </div>
             <div class="flex items-center space-x-2 sm:space-x-3">
                 <button v-if="isConfigured || isPreviewMode" @click="showPasswordModal = true; adminPassword = ''" class="sketch-btn sketch-btn-secondary px-3 py-1.5 text-sm shadow hover:shadow-md flex items-center text-purple-600">
@@ -512,6 +512,11 @@
                     </div>
                     
                     <div v-if="!isConfigured" class="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <label class="block text-sm font-bold mb-2 text-gray-700">單位名稱 (將顯示於首頁副標題)</label>
+                        <input v-model="tempUnitName" type="text" placeholder="例如：南興教務處、設計部..." class="sketch-input w-full text-sm font-bold">
+                    </div>
+
+                    <div v-if="!isConfigured" class="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <label class="block text-sm font-bold mb-2 text-gray-700">Firebase Config (大括號區塊)</label>
                         <textarea v-model="tempFirebaseConfig" placeholder="貼上 { apiKey: '...', ... } 的內容" class="sketch-input w-full text-xs font-mono h-24 custom-scrollbar"></textarea>
                     </div>
@@ -526,6 +531,14 @@
                         <div class="flex gap-2">
                             <input v-model="tempGeminiKey" type="password" placeholder="貼上新的 AIzaSy... 以覆蓋" class="sketch-input flex-1 text-sm font-mono">
                             <button @click="updateGeminiKey" class="sketch-btn sketch-btn-primary px-3 py-1 text-sm whitespace-nowrap">更新</button>
+                        </div>
+                    </div>
+
+                    <div v-if="isConfigured && isAdmin" class="mb-4 bg-green-50 p-4 rounded-lg border border-green-200">
+                        <label class="block text-sm font-bold mb-2 text-gray-700">更新單位名稱</label>
+                        <div class="flex gap-2">
+                            <input v-model="tempUnitName" type="text" placeholder="例如：南興教務處" class="sketch-input flex-1 text-sm font-bold">
+                            <button @click="updateUnitName" class="sketch-btn sketch-btn-primary px-3 py-1 text-sm whitespace-nowrap">更新</button>
                         </div>
                     </div>
 
@@ -587,6 +600,8 @@
                 const tempFirebaseConfig = ref('');
                 const tempGeminiKey = ref('');
                 const geminiKey = ref('');
+                const unitName = ref('');
+                const tempUnitName = ref('');
                 let db = null;
                 let auth = null;
                 const basePath = 'artifacts/nanhsing-drinks/public/data'; // 統一儲存路徑
@@ -643,6 +658,7 @@
                     const configParam = urlParams.get('config');
                     let configStr = localStorage.getItem('office_eats_fb_config');
                     let gKey = localStorage.getItem('office_eats_gemini_key') || '';
+                    let uName = localStorage.getItem('office_eats_unit_name') || '';
                     
                     if (configParam) {
                         try {
@@ -650,8 +666,10 @@
                             if (decoded.fb && decoded.gm) {
                                 configStr = JSON.stringify(decoded.fb);
                                 gKey = decoded.gm;
+                                uName = decoded.unit || '';
                                 localStorage.setItem('office_eats_fb_config', configStr);
                                 localStorage.setItem('office_eats_gemini_key', gKey);
+                                localStorage.setItem('office_eats_unit_name', uName);
                                 window.history.replaceState({}, document.title, window.location.pathname);
                             }
                         } catch (e) { console.error("URL 解碼失敗"); }
@@ -662,6 +680,7 @@
                             const fbConfig = JSON.parse(configStr);
                             initFirebase(fbConfig);
                             geminiKey.value = gKey;
+                            unitName.value = uName;
                             isConfigured.value = true;
                         } catch(e) { console.error("Firebase 初始化失敗"); }
                     } else {
@@ -979,6 +998,7 @@
                 };
 
                 const saveSettings = () => {
+                    if (!tempUnitName.value.trim()) return showMsg('請輸入您的單位名稱', 'error');
                     if (!tempFirebaseConfig.value.trim() || !tempFirebaseConfig.value.includes('apiKey')) return showMsg('Config 格式錯誤，找不到 apiKey', 'error');
                     if (!tempGeminiKey.value.trim()) return showMsg('請輸入 Gemini API Key', 'error');
                     try {
@@ -986,6 +1006,7 @@
                         const configObj = JSON.parse(jsonStr);
                         localStorage.setItem('office_eats_fb_config', JSON.stringify(configObj));
                         localStorage.setItem('office_eats_gemini_key', tempGeminiKey.value);
+                        localStorage.setItem('office_eats_unit_name', tempUnitName.value.trim());
                         showSettings.value = false;
                         showMsg('設定儲存成功！正在重整網頁以套用新連線...');
                         setTimeout(() => window.location.reload(), 1500);
@@ -1001,6 +1022,14 @@
                     showMsg('Gemini API Key 更新成功！', 'success');
                 };
 
+                const updateUnitName = () => {
+                    if (!tempUnitName.value.trim()) return showMsg('請輸入單位名稱', 'error');
+                    localStorage.setItem('office_eats_unit_name', tempUnitName.value.trim());
+                    unitName.value = tempUnitName.value.trim();
+                    tempUnitName.value = '';
+                    showMsg('單位名稱更新成功！', 'success');
+                };
+
                 const clearSettings = () => {
                     localStorage.clear();
                     showMsg('設定已全部清除，正在重整網頁...');
@@ -1011,7 +1040,8 @@
                     if(!isConfigured.value) return '';
                     const configStr = localStorage.getItem('office_eats_fb_config');
                     const gmKey = localStorage.getItem('office_eats_gemini_key');
-                    const payload = { fb: JSON.parse(configStr), gm: gmKey };
+                    const uName = localStorage.getItem('office_eats_unit_name') || '';
+                    const payload = { fb: JSON.parse(configStr), gm: gmKey, unit: uName };
                     return `${window.location.href.split('?')[0]}?config=${btoa(JSON.stringify(payload))}`;
                 });
                 const qrCodeUrl = computed(() => shareUrl.value ? `https://quickchart.io/qr?text=${encodeURIComponent(shareUrl.value)}&size=300&margin=1` : '');
@@ -1030,14 +1060,14 @@
 
                 return {
                     currentView, loading, loadingMsg, showSettings, isAdmin,
-                    isConfigured, tempFirebaseConfig, tempGeminiKey, geminiKey,
+                    isConfigured, tempFirebaseConfig, tempGeminiKey, geminiKey, unitName, tempUnitName,
                     cart, userName, cartTotalQty, cartTotalPrice,
                     showPasswordModal, adminPassword, checkAdminPassword, confirmModal,
                     activeSession, allStores, adminSession, editStoreName, editStorePhone, isDrawing, luckyDraw, startNewSession, loadStoreMenuForEdit, saveMenuToLibrary,
                     activeItem, itemOptions, menuItems, openItemModal, setSize, confirmAddItem,
                     updateQty, removeFromCart, submitOrder, handleImageUpload, newMenuItems, aiProcessing, addNewEmptyItem,
                     existingOrders, generateOrderText, copyOrderText, toggleOrderStatus,
-                    saveSettings, updateGeminiKey, clearSettings, shareUrl, qrCodeUrl, copyShareUrl, msgModal, fileInput, isPreviewMode, enterPreviewMode
+                    saveSettings, updateGeminiKey, updateUnitName, clearSettings, shareUrl, qrCodeUrl, copyShareUrl, msgModal, fileInput, isPreviewMode, enterPreviewMode
                 };
             }
         }).mount('#app');

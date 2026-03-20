@@ -9,7 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- ⭐ 新增：引入撒紙花特效庫 -->
+    <!-- 引入撒紙花特效庫 -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <style>
@@ -74,7 +74,14 @@
                 <button v-if="isConfigured || isPreviewMode" @click="showPasswordModal = true; adminPassword = ''" class="sketch-btn sketch-btn-secondary px-3 py-1.5 text-sm shadow hover:shadow-md flex items-center text-purple-600">
                     <i class="fas fa-magic sm:mr-1"></i><span class="hidden sm:inline font-bold">發起新團購</span>
                 </button>
-                <button @click="showSettings = true" class="sketch-btn sketch-btn-secondary w-10 h-10 flex items-center justify-center text-xl shadow hover:shadow-md" title="設定">
+                
+                <!-- ⭐ 修正：分享按鈕 (所有已連線的人都可見) -->
+                <button v-if="isConfigured" @click="showShareModal = true" class="sketch-btn sketch-btn-secondary w-10 h-10 flex items-center justify-center text-xl shadow hover:shadow-md text-blue-500" title="分享點餐連結">
+                    <i class="fas fa-share-nodes"></i>
+                </button>
+
+                <!-- ⭐ 修正：設定齒輪按鈕 (僅管理員 或 尚未設定的新手可見) -->
+                <button v-if="isAdmin || !isConfigured" @click="showSettings = true" class="sketch-btn sketch-btn-secondary w-10 h-10 flex items-center justify-center text-xl shadow hover:shadow-md text-gray-700" title="系統設定">
                     <i class="fas fa-cog"></i>
                 </button>
             </div>
@@ -248,7 +255,6 @@
                                             <option value="" disabled>請選擇店家...</option>
                                             <option v-for="store in allStores" :key="store" :value="store">{{ store }}</option>
                                         </select>
-                                        <!-- 修改：觸發新的轉盤動畫 -->
                                         <button @click="startLuckyDraw" class="sketch-btn bg-yellow-400 hover:bg-yellow-500 text-yellow-900 border-2 border-yellow-600 px-4 py-2 text-lg flex items-center shadow-sm whitespace-nowrap overflow-hidden relative group">
                                             <i class="fas fa-dice mr-2 group-hover:rotate-180 transition-transform duration-500"></i>大轉盤
                                         </button>
@@ -418,7 +424,7 @@
             </transition>
         </main>
 
-        <!-- ⭐ 新增：大轉盤 Modal -->
+        <!-- 大轉盤 Modal -->
         <transition name="modal">
             <div v-if="showRouletteModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black bg-opacity-70 backdrop-blur-sm" @click="!isSpinning && (showRouletteModal = false)"></div>
@@ -428,13 +434,10 @@
                     </h3>
                     
                     <div class="relative w-64 h-64 md:w-80 md:h-80 drop-shadow-xl">
-                        <!-- 頂部指針 -->
                         <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
                             <i class="fas fa-caret-down text-6xl text-red-600 filter drop-shadow-md"></i>
                         </div>
-                        <!-- 轉盤畫布 -->
                         <canvas id="roulette-canvas" width="320" height="320" class="w-full h-full rounded-full border-4 border-gray-100 bg-white" :style="rouletteStyle"></canvas>
-                        <!-- 中心點裝飾 -->
                         <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full border-4 border-yellow-400 shadow-sm z-10"></div>
                     </div>
 
@@ -536,18 +539,44 @@
             </div>
         </transition>
 
-        <!-- 設定視窗 Modal -->
+        <!-- ⭐ 新增：專屬分享 Modal -->
+        <transition name="modal">
+            <div v-if="showShareModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm transition-opacity" @click="showShareModal = false"></div>
+                <div class="paper-card bg-white w-full max-w-sm p-6 relative z-10 transform scale-100 transition-transform text-center">
+                    <div class="flex justify-between items-center mb-5 border-b-2 border-gray-100 pb-3">
+                        <h3 class="text-xl font-bold flex items-center text-gray-800"><i class="fas fa-share-nodes mr-2 text-blue-500"></i>分享點餐連結</h3>
+                        <button @click="showShareModal = false" class="text-gray-400 hover:text-gray-700 text-xl"><i class="fas fa-times"></i></button>
+                    </div>
+                    
+                    <p class="text-sm text-gray-600 mb-4 text-left">複製下方專屬連結傳給同事，大家點開就能一起進來點餐囉！</p>
+                    
+                    <div class="flex items-center space-x-2 mb-4 bg-gray-50 p-2 rounded-lg border border-gray-300">
+                        <input :value="shareUrl" readonly class="w-full text-xs bg-transparent text-gray-500 font-mono outline-none truncate px-1">
+                        <button @click="copyShareUrl" class="sketch-btn sketch-btn-primary px-4 py-2 text-sm whitespace-nowrap shadow-sm">複製</button>
+                    </div>
+
+                    <div class="bg-green-50 text-green-700 p-3 rounded-lg text-xs font-bold flex items-start text-left border border-green-200">
+                        <i class="fas fa-shield-alt mt-0.5 mr-2"></i>
+                        <span>資安保護中：此連結僅包含資料庫位置，已自動為您隱藏 AI 金鑰，且單位名稱由資料庫即時同步。</span>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- ⭐ 修正：乾淨的設定視窗 Modal (僅限管理員) -->
         <transition name="modal">
             <div v-if="showSettings" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm transition-opacity" @click="showSettings = false"></div>
                 <div class="paper-card bg-white w-full max-w-lg p-6 relative z-10 transform scale-100 transition-transform">
                     <div class="flex justify-between items-center mb-5">
-                        <h3 class="text-xl font-bold flex items-center text-gray-800"><i class="fas fa-cogs mr-2 text-gray-500"></i>系統設定 (Firebase版)</h3>
+                        <h3 class="text-xl font-bold flex items-center text-gray-800"><i class="fas fa-cogs mr-2 text-gray-500"></i>系統設定 (管理員)</h3>
                         <button @click="showSettings = false" class="text-gray-400 hover:text-gray-700 text-xl"><i class="fas fa-times"></i></button>
                     </div>
                     
+                    <!-- 第一次設定才顯示 -->
                     <div v-if="!isConfigured" class="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <label class="block text-sm font-bold mb-2 text-gray-700">單位名稱 (將顯示於首頁副標題)</label>
+                        <label class="block text-sm font-bold mb-2 text-gray-700">單位名稱 (將同步至資料庫)</label>
                         <input v-model="tempUnitName" type="text" placeholder="例如：南興教務處、設計部..." class="sketch-input w-full text-sm font-bold">
                     </div>
 
@@ -561,6 +590,7 @@
                         <input v-model="tempGeminiKey" type="password" placeholder="貼上 AIzaSy..." class="sketch-input w-full text-sm font-mono">
                     </div>
 
+                    <!-- 已連線後的更新設定 -->
                     <div v-if="isConfigured && isAdmin" class="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
                         <label class="block text-sm font-bold mb-2 text-gray-700">更新 Gemini API Key (AI 辨識金鑰)</label>
                         <div class="flex gap-2">
@@ -569,22 +599,12 @@
                         </div>
                     </div>
 
-                    <div v-if="isConfigured && isAdmin" class="mb-4 bg-green-50 p-4 rounded-lg border border-green-200">
-                        <label class="block text-sm font-bold mb-2 text-gray-700">更新單位名稱</label>
+                    <div v-if="isConfigured && isAdmin" class="mb-6 bg-green-50 p-4 rounded-lg border border-green-200">
+                        <label class="block text-sm font-bold mb-2 text-gray-700">更新單位名稱 (將同步給所有同事)</label>
                         <div class="flex gap-2">
                             <input v-model="tempUnitName" type="text" placeholder="例如：南興教務處" class="sketch-input flex-1 text-sm font-bold">
-                            <button @click="updateUnitName" class="sketch-btn sketch-btn-primary px-3 py-1 text-sm whitespace-nowrap">更新</button>
+                            <button @click="updateUnitName" class="sketch-btn sketch-btn-primary px-3 py-1 text-sm whitespace-nowrap">寫入資料庫</button>
                         </div>
-                    </div>
-
-                    <div v-if="isConfigured" class="border-t-2 border-dashed border-gray-200 pt-5 mb-6">
-                        <h4 class="font-bold mb-3 text-sm text-gray-800 flex items-center"><i class="fas fa-share-alt mr-2 text-blue-500"></i>分享連結給同事</h4>
-                        <div class="flex items-center space-x-2 mb-4 bg-white p-1 rounded-lg border border-gray-300">
-                            <input :value="shareUrl" readonly class="w-full text-xs bg-transparent text-gray-500 font-mono outline-none px-2 py-1 truncate">
-                            <button @click="copyShareUrl" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-bold transition-colors whitespace-nowrap">複製</button>
-                        </div>
-                        <p class="text-xs text-center text-green-600 font-bold mb-2"><i class="fas fa-shield-alt mr-1"></i>資安保護中：此連結已自動隱藏您的 AI 金鑰</p>
-                        <p class="text-xs text-center text-gray-500">分享連結僅包含資料庫位置，同事打開就能直接點餐！</p>
                     </div>
 
                     <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
@@ -622,16 +642,15 @@
 
         createApp({
             setup() {
-                // UI 狀態
                 const currentView = ref('menu');
                 const loading = ref(false);
                 const loadingMsg = ref('');
                 const showSettings = ref(false);
+                const showShareModal = ref(false); // 新增：分享視窗狀態
                 const showPasswordModal = ref(false);
                 const adminPassword = ref('');
                 const isPreviewMode = ref(false);
                 
-                // 設定資料
                 const isConfigured = ref(false);
                 const tempFirebaseConfig = ref('');
                 const tempGeminiKey = ref('');
@@ -642,7 +661,6 @@
                 let auth = null;
                 const basePath = 'artifacts/nanhsing-drinks/public/data'; 
 
-                // 業務資料
                 const activeSession = reactive({ storeName: '', organizer: '', deadline: '', storePhone: '' });
                 const allStores = ref([]);
                 const storeMenusObj = ref({});
@@ -653,7 +671,6 @@
                 const editStorePhone = ref(''); 
                 const isDrawing = ref(false);
 
-                // ⭐ 轉盤相關狀態
                 const showRouletteModal = ref(false);
                 const rouletteWinner = ref('');
                 const rouletteStyle = ref('');
@@ -671,7 +688,6 @@
                 const newMenuItems = ref([]);
                 const fileInput = ref(null);
 
-                // 全局提示機制
                 const msgModal = reactive({ show: false, text: '', type: 'info' });
                 let msgTimeout = null;
                 const showMsg = (text, type = 'success') => {
@@ -680,7 +696,6 @@
                     msgTimeout = setTimeout(() => msgModal.show = false, 3000);
                 };
 
-                // 自訂確認視窗
                 const confirmModal = reactive({
                     isVisible: false, title: '', message: '', actionType: '',
                     show: (type) => {
@@ -709,11 +724,13 @@
                             catch (e) { decodedStr = atob(configParam); } 
                             
                             const decoded = JSON.parse(decodedStr);
-                            // 💡 資安修正：不再強制要求檢查 decoded.gm，因為分享連結已經拿掉它了
                             if (decoded.fb) {
                                 configStr = JSON.stringify(decoded.fb);
-                                gKey = decoded.gm || localStorage.getItem('office_eats_gemini_key') || ''; // 優先保留本機舊有的金鑰
-                                uName = decoded.unit || '';
+                                // 相容舊版網址：優先保留本機金鑰，若無則看網址有沒有舊版帶入的金鑰
+                                gKey = localStorage.getItem('office_eats_gemini_key') || decoded.gm || ''; 
+                                // 相容舊版網址的名稱
+                                uName = localStorage.getItem('office_eats_unit_name') || decoded.unit || '';
+                                
                                 localStorage.setItem('office_eats_fb_config', configStr);
                                 if(gKey) localStorage.setItem('office_eats_gemini_key', gKey);
                                 localStorage.setItem('office_eats_unit_name', uName);
@@ -735,7 +752,6 @@
                     }
                 });
 
-                // Firebase 核心初始化與監聽
                 const initFirebase = async (config) => {
                     loading.value = true; loadingMsg.value = "連線至資料庫中...";
                     try {
@@ -755,6 +771,15 @@
                 };
 
                 const setupRealtimeListeners = () => {
+                    // ⭐ 新增：監聽資料庫中的「單位名稱 (全域設定)」
+                    onSnapshot(doc(db, basePath, "systemSettings", "info"), (docSnap) => {
+                        if (docSnap.exists() && docSnap.data().unitName) {
+                            unitName.value = docSnap.data().unitName;
+                            localStorage.setItem('office_eats_unit_name', unitName.value);
+                            document.title = `${unitName.value} 飲料歡樂點 🤪`; // 同步更新瀏覽器頁籤標題
+                        }
+                    });
+
                     onSnapshot(doc(db, basePath, "activeSession", "current"), (docSnap) => {
                         if (docSnap.exists()) {
                             Object.assign(activeSession, docSnap.data());
@@ -799,24 +824,21 @@
                     showMsg('已進入預覽模式 (此模式下資料不會真的儲存喔！)', 'info');
                 };
 
-                // ⭐ 全新：超華麗大轉盤邏輯
                 const drawRouletteCanvas = () => {
                     const canvas = document.getElementById('roulette-canvas');
                     if (!canvas) return;
                     const ctx = canvas.getContext('2d');
                     const width = canvas.width; const height = canvas.height;
                     const centerX = width / 2; const centerY = height / 2;
-                    const radius = centerX - 6; // 留邊框空間
+                    const radius = centerX - 6; 
                     const stores = allStores.value;
                     const numSlices = stores.length;
                     const sliceAngle = (2 * Math.PI) / numSlices;
-                    // 豐富的馬卡龍色彩
                     const colors = ['#f87171', '#fb923c', '#fbbf24', '#a3e635', '#34d399', '#2dd4bf', '#38bdf8', '#818cf8', '#a78bfa', '#f472b6'];
 
                     ctx.clearRect(0, 0, width, height);
                     
                     for (let i = 0; i < numSlices; i++) {
-                        // 畫扇形
                         ctx.beginPath();
                         ctx.moveTo(centerX, centerY);
                         ctx.arc(centerX, centerY, radius, i * sliceAngle, (i + 1) * sliceAngle);
@@ -826,7 +848,6 @@
                         ctx.strokeStyle = '#ffffff';
                         ctx.stroke();
 
-                        // 寫文字
                         ctx.save();
                         ctx.translate(centerX, centerY);
                         ctx.rotate(i * sliceAngle + sliceAngle / 2);
@@ -838,7 +859,6 @@
                         ctx.shadowOffsetX = 1;
                         ctx.shadowOffsetY = 1;
                         
-                        // 文字過長處理
                         let text = stores[i];
                         if(text.length > 7) text = text.substring(0, 6) + '...';
                         ctx.fillText(text, radius - 20, 6);
@@ -852,36 +872,27 @@
 
                     showRouletteModal.value = true;
                     rouletteWinner.value = '';
-                    // 瞬間重置角度
                     rouletteStyle.value = 'transform: rotate(0deg); transition: none;';
                     isSpinning.value = true;
 
-                    // 稍微延遲以確保 Modal 渲染完成，再畫布與開始旋轉
                     setTimeout(() => {
                         drawRouletteCanvas();
                         
                         setTimeout(() => {
                             const numSlices = allStores.value.length;
-                            // 隨機決定中獎店家
                             const winnerIndex = Math.floor(Math.random() * numSlices);
                             const targetStore = allStores.value[winnerIndex];
                             
-                            // 計算要旋轉的角度
                             const sliceAngle = 360 / numSlices;
-                            // 轉盤標準 0 度在右邊(3點鐘)，指針在上面(-90度/270度)。
-                            // 我們要把目標扇形的中心轉到指針的位置。加上 360 * 6 讓它多轉 6 圈。
                             const targetDegree = 270 - (winnerIndex * sliceAngle + sliceAngle / 2) + (360 * 6);
                             
-                            // 套用 CSS 動畫 (cubic-bezier 創造先快後慢的物理效果)
                             rouletteStyle.value = `transform: rotate(${targetDegree}deg); transition: transform 4s cubic-bezier(0.1, 0.7, 0.1, 1);`;
 
-                            // 等待 4 秒鐘動畫結束
                             setTimeout(() => {
                                 isSpinning.value = false;
                                 rouletteWinner.value = targetStore;
-                                adminSession.storeName = targetStore; // 自動填入表單
+                                adminSession.storeName = targetStore; 
                                 
-                                // 觸發全螢幕撒紙花特效！
                                 if (typeof confetti !== 'undefined') {
                                     confetti({
                                         particleCount: 150,
@@ -1106,7 +1117,7 @@
                     catch (e) { order[field] = !order[field]; showMsg('狀態更新失敗，請檢查網路', 'error'); }
                 };
 
-                const saveSettings = () => {
+                const saveSettings = async () => {
                     if (!tempUnitName.value.trim()) return showMsg('請輸入您的單位名稱', 'error');
                     if (!tempFirebaseConfig.value.trim() || !tempFirebaseConfig.value.includes('apiKey')) return showMsg('Config 格式錯誤，找不到 apiKey', 'error');
                     if (!tempGeminiKey.value.trim()) return showMsg('請輸入 Gemini API Key', 'error');
@@ -1116,6 +1127,16 @@
                         localStorage.setItem('office_eats_fb_config', JSON.stringify(configObj));
                         localStorage.setItem('office_eats_gemini_key', tempGeminiKey.value);
                         localStorage.setItem('office_eats_unit_name', tempUnitName.value.trim());
+                        
+                        // ⭐ 第一次設定時，嘗試立即將單位名稱寫入 Firebase (確保同事點網址時能馬上同步)
+                        try {
+                            const app = initializeApp(configObj);
+                            const tempDb = getFirestore(app);
+                            const tempAuth = getAuth(app);
+                            await signInAnonymously(tempAuth);
+                            await setDoc(doc(tempDb, basePath, "systemSettings", "info"), { unitName: tempUnitName.value.trim() }, { merge: true });
+                        } catch(err) { console.log('Initial DB write slightly delayed, will sync later.'); }
+
                         showSettings.value = false;
                         showMsg('設定儲存成功！正在重整網頁以套用新連線...');
                         setTimeout(() => window.location.reload(), 1500);
@@ -1131,12 +1152,18 @@
                     showMsg('Gemini API Key 更新成功！', 'success');
                 };
 
-                const updateUnitName = () => {
+                // ⭐ 寫入 Firebase 資料庫
+                const updateUnitName = async () => {
                     if (!tempUnitName.value.trim()) return showMsg('請輸入單位名稱', 'error');
-                    localStorage.setItem('office_eats_unit_name', tempUnitName.value.trim());
-                    unitName.value = tempUnitName.value.trim();
-                    tempUnitName.value = '';
-                    showMsg('單位名稱更新成功！', 'success');
+                    const newName = tempUnitName.value.trim();
+                    if (!isConfigured.value) return;
+                    
+                    try {
+                        await setDoc(doc(db, basePath, "systemSettings", "info"), { unitName: newName }, { merge: true });
+                        unitName.value = newName;
+                        tempUnitName.value = '';
+                        showMsg('單位名稱更新成功！全體畫面即時同步', 'success');
+                    } catch(e) { showMsg('更新失敗，請檢查權限', 'error'); }
                 };
 
                 const clearSettings = () => {
@@ -1148,9 +1175,8 @@
                 const shareUrl = computed(() => {
                     if(!isConfigured.value) return '';
                     const configStr = localStorage.getItem('office_eats_fb_config');
-                    const uName = localStorage.getItem('office_eats_unit_name') || '';
-                    // 💡 核心資安升級：打包的 payload 徹底移除 gm (Gemini Key)
-                    const payload = { fb: JSON.parse(configStr), unit: uName };
+                    // ⭐ 極致縮短：既然單位名稱寫進資料庫了，網址裡只要裝 Firebase Config 就好！
+                    const payload = { fb: JSON.parse(configStr) };
                     return `${window.location.href.split('?')[0]}?config=${btoa(encodeURIComponent(JSON.stringify(payload)))}`;
                 });
                 
@@ -1169,7 +1195,7 @@
                 };
 
                 return {
-                    currentView, loading, loadingMsg, showSettings, isAdmin,
+                    currentView, loading, loadingMsg, showSettings, showShareModal, isAdmin,
                     isConfigured, tempFirebaseConfig, tempGeminiKey, geminiKey, unitName, tempUnitName,
                     cart, userName, cartTotalQty, cartTotalPrice,
                     showPasswordModal, adminPassword, checkAdminPassword, confirmModal,

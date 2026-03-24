@@ -462,7 +462,7 @@
                         <div>
                             <label class="block text-sm font-bold mb-2 text-gray-700">甜度 <span class="text-xs font-normal text-gray-400">(選填)</span></label>
                             <div class="flex flex-wrap gap-2">
-                                <button v-for="s in ['正常糖', '少糖', '半糖', '微糖', '無糖']" :key="s" @click="itemOptions.sugar = itemOptions.sugar === s ? '' : s" :class="itemOptions.sugar === s ? 'bg-blue-500 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200'" class="px-3 py-1.5 rounded-lg text-sm border-2 font-medium transition-all active:scale-95">{{ s }}</button>
+                                <button v-for="s in ['正常糖', '少糖', '半糖', '微糖', '二分糖', '一分糖', '無糖']" :key="s" @click="itemOptions.sugar = itemOptions.sugar === s ? '' : s" :class="itemOptions.sugar === s ? 'bg-blue-500 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200'" class="px-3 py-1.5 rounded-lg text-sm border-2 font-medium transition-all active:scale-95">{{ s }}</button>
                             </div>
                         </div>
 

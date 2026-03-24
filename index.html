@@ -1,15 +1,13 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>一起減糖 續喝飲料 🤪</title>
-    <!-- 引入 Vue, Tailwind, FontAwesome -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- 引入撒紙花特效庫 -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <style>
@@ -62,7 +60,6 @@
 <body class="p-4 md:p-8 min-h-screen text-gray-800">
 
     <div id="app" class="max-w-3xl mx-auto relative z-10">
-        <!-- 頂部標題區塊 -->
         <header class="mb-6 flex justify-between items-center">
             <div class="cursor-pointer" @click="currentView = 'menu'">
                 <h1 class="text-3xl font-black tracking-wider transform -rotate-1 text-teal-700 hover:text-teal-500 transition-colors drop-shadow-sm">
@@ -75,19 +72,16 @@
                     <i class="fas fa-magic sm:mr-1"></i><span class="hidden sm:inline font-bold">發起新團購</span>
                 </button>
                 
-                <!-- ⭐ 修正：分享按鈕 (所有已連線的人都可見) -->
                 <button v-if="isConfigured" @click="showShareModal = true" class="sketch-btn sketch-btn-secondary w-10 h-10 flex items-center justify-center text-xl shadow hover:shadow-md text-blue-500" title="分享點餐連結">
                     <i class="fas fa-share-nodes"></i>
                 </button>
 
-                <!-- ⭐ 修正：設定齒輪按鈕 (僅管理員 或 尚未設定的新手可見) -->
                 <button v-if="isAdmin || !isConfigured" @click="showSettings = true" class="sketch-btn sketch-btn-secondary w-10 h-10 flex items-center justify-center text-xl shadow hover:shadow-md text-gray-700" title="系統設定">
                     <i class="fas fa-cog"></i>
                 </button>
             </div>
         </header>
 
-        <!-- 主內容區 -->
         <main class="paper-card p-4 md:p-8 min-h-[500px]">
             <transition name="fade">
                 <div v-if="loading" class="absolute inset-0 z-50 bg-white bg-opacity-80 flex flex-col items-center justify-center rounded-lg backdrop-blur-sm">
@@ -96,7 +90,6 @@
                 </div>
             </transition>
 
-            <!-- 狀態 0：尚未設定資料庫 -->
             <transition name="fade" mode="out-in">
                 <div v-if="!isConfigured && !isPreviewMode" class="text-center py-10" key="setup">
                     <div class="text-6xl text-gray-300 mb-6"><i class="fas fa-database"></i></div>
@@ -112,9 +105,7 @@
                     </div>
                 </div>
 
-                <!-- 狀態 1：瀏覽今日菜單 -->
                 <div v-else-if="currentView === 'menu'" key="menu">
-                    <!-- 今日開團資訊面板 -->
                     <div class="bg-teal-50 border-l-4 border-teal-500 p-4 mb-6 rounded-r-lg shadow-sm border-t border-r border-b border-teal-100">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                             <div>
@@ -124,7 +115,6 @@
                             <div v-if="activeSession.storeName" class="mt-3 sm:mt-0 flex flex-col gap-1 text-sm font-bold text-gray-700 bg-white px-4 py-2 rounded-lg border border-teal-100 shadow-sm w-full sm:w-auto">
                                 <span class="flex items-center"><i class="fas fa-user-circle w-5 text-teal-500"></i>發起人：<span class="text-teal-700 ml-1">{{ activeSession.organizer || '未填寫' }}</span></span>
                                 <span class="flex items-center"><i class="fas fa-clock w-5 text-red-400"></i>結單時間：<span class="text-red-500 ml-1">{{ activeSession.deadline || '未填寫' }}</span></span>
-                                <!-- 店家電話 -->
                                 <span v-if="activeSession.storePhone" class="flex items-center">
                                     <i class="fas fa-phone-alt w-5 text-blue-500"></i>店家電話：
                                     <a :href="'tel:' + activeSession.storePhone" class="text-blue-600 underline ml-1 font-mono hover:text-blue-800 transition-colors">{{ activeSession.storePhone }}</a>
@@ -136,7 +126,6 @@
                     <div class="flex justify-end mb-4">
                         <button @click="currentView = 'orders'" class="sketch-btn sketch-btn-secondary px-4 py-2 text-sm shadow flex items-center relative">
                             <i class="fas fa-list-ol mr-2 text-blue-500"></i>查看訂單與統計
-                            <!-- 即時連線指示燈 -->
                             <span v-if="isConfigured" class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-pulse" title="即時同步中"></span>
                         </button>
                     </div>
@@ -146,7 +135,6 @@
                         <p class="text-gray-500 font-medium">現在沒有開放點餐喔！<br>請等候主揪發起新團購。</p>
                     </div>
 
-                    <!-- 菜單列表 -->
                     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div v-for="item in menuItems" :key="item.id" 
                              class="bg-white p-4 rounded-lg border-2 border-gray-100 hover:border-teal-400 transition-all cursor-pointer relative flex justify-between items-center group active:scale-95 shadow-sm" 
@@ -164,7 +152,6 @@
                         </div>
                     </div>
 
-                    <!-- 浮動購物車按鈕 -->
                     <transition name="scale">
                         <div v-if="cart.length > 0" class="fixed bottom-6 right-6 z-40">
                             <button @click="currentView = 'cart'" class="sketch-btn sketch-btn-primary w-16 h-16 rounded-full flex items-center justify-center shadow-2xl text-2xl relative hover:scale-110 transition-transform bg-teal-600">
@@ -177,7 +164,6 @@
                     </transition>
                 </div>
 
-                <!-- 狀態 2：確認訂單與結帳 -->
                 <div v-else-if="currentView === 'cart'" key="cart">
                     <div class="flex items-center mb-6 border-b-2 border-dashed border-gray-300 pb-4">
                         <button @click="currentView = 'menu'" class="text-gray-500 hover:text-gray-800 mr-4 transition-colors p-2 rounded-full hover:bg-gray-100">
@@ -230,7 +216,6 @@
                     </div>
                 </div>
 
-                <!-- 狀態 3：發起團購與菜單庫管理 (Firebase版) -->
                 <div v-else-if="currentView === 'admin'" key="admin">
                     <div class="flex items-center justify-between mb-6 border-b-2 border-dashed border-gray-300 pb-4">
                         <div class="flex items-center">
@@ -242,7 +227,6 @@
                     </div>
 
                     <div class="space-y-8">
-                        <!-- 區塊一：發起今日團購 -->
                         <div class="bg-white p-6 rounded-xl border-2 border-teal-300 shadow-md relative overflow-hidden">
                             <div class="absolute top-0 right-0 bg-teal-500 text-white px-4 py-1 rounded-bl-lg font-bold text-sm shadow">STEP 1. 發起開團</div>
                             <h3 class="font-bold text-xl mb-4 text-gray-800 mt-2"><i class="fas fa-rocket mr-2 text-teal-500"></i>今日要喝哪一家？</h3>
@@ -284,7 +268,6 @@
                             </div>
                         </div>
 
-                        <!-- 區塊二：菜單庫管理 (建檔) -->
                         <div class="bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
                             <h3 class="font-bold text-xl mb-4 text-gray-800"><i class="fas fa-database mr-2 text-blue-500"></i>STEP 2. 菜單庫建檔管理</h3>
                             <p class="text-sm text-gray-600 mb-4">您可以預先建置常喝的飲料店菜單。資料儲存於 Firebase。</p>
@@ -346,7 +329,6 @@
                     </div>
                 </div>
 
-                <!-- 狀態 4：訂單統計 -->
                 <div v-else-if="currentView === 'orders'" key="orders">
                     <div class="relative flex items-center justify-center mb-6 border-b-2 border-dashed border-gray-300 pb-4">
                         <button @click="currentView = 'menu'" class="absolute left-0 text-gray-500 hover:text-gray-800 transition-colors flex items-center px-2 py-1.5 rounded-lg hover:bg-gray-100" title="返回菜單點餐">
@@ -424,10 +406,9 @@
             </transition>
         </main>
 
-        <!-- 大轉盤 Modal -->
         <transition name="modal">
             <div v-if="showRouletteModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
-                <div class="absolute inset-0 bg-black bg-opacity-70 backdrop-blur-sm" @click="!isSpinning && (showRouletteModal = false)"></div>
+                <div class="absolute inset-0 bg-black bg-opacity-70 backdrop-blur-sm" @click="closeRouletteModal"></div>
                 <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 relative z-10 flex flex-col items-center transform scale-100 transition-transform border-4 border-yellow-400">
                     <h3 class="text-2xl font-black mb-6 text-gray-800 tracking-wider">
                         <i class="fas fa-gem text-yellow-500 mr-2"></i>命運的輪盤
@@ -453,7 +434,6 @@
             </div>
         </transition>
 
-        <!-- 餐點客製化 Modal -->
         <transition name="modal">
             <div v-if="activeItem" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm transition-opacity" @click="activeItem = null"></div>
@@ -507,7 +487,6 @@
             </div>
         </transition>
 
-        <!-- 自訂確認 Modal -->
         <transition name="modal">
             <div v-if="confirmModal.isVisible" class="fixed inset-0 z-[150] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm transition-opacity" @click="confirmModal.isVisible = false"></div>
@@ -523,7 +502,6 @@
             </div>
         </transition>
 
-        <!-- 密碼輸入 Modal -->
         <transition name="modal">
             <div v-if="showPasswordModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm transition-opacity" @click="showPasswordModal = false"></div>
@@ -539,7 +517,6 @@
             </div>
         </transition>
 
-        <!-- ⭐ 新增：專屬分享 Modal -->
         <transition name="modal">
             <div v-if="showShareModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm transition-opacity" @click="showShareModal = false"></div>
@@ -564,7 +541,6 @@
             </div>
         </transition>
 
-        <!-- ⭐ 修正：乾淨的設定視窗 Modal (僅限管理員) -->
         <transition name="modal">
             <div v-if="showSettings" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm transition-opacity" @click="showSettings = false"></div>
@@ -574,7 +550,6 @@
                         <button @click="showSettings = false" class="text-gray-400 hover:text-gray-700 text-xl"><i class="fas fa-times"></i></button>
                     </div>
                     
-                    <!-- 第一次設定才顯示 -->
                     <div v-if="!isConfigured" class="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <label class="block text-sm font-bold mb-2 text-gray-700">單位名稱 (將同步至資料庫)</label>
                         <input v-model="tempUnitName" type="text" placeholder="例如：南興教務處、設計部..." class="sketch-input w-full text-sm font-bold">
@@ -590,7 +565,6 @@
                         <input v-model="tempGeminiKey" type="password" placeholder="貼上 AIzaSy..." class="sketch-input w-full text-sm font-mono">
                     </div>
 
-                    <!-- 已連線後的更新設定 -->
                     <div v-if="isConfigured && isAdmin" class="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
                         <label class="block text-sm font-bold mb-2 text-gray-700">更新 Gemini API Key (AI 辨識金鑰)</label>
                         <div class="flex gap-2">
@@ -618,7 +592,6 @@
             </div>
         </transition>
 
-        <!-- 訊息提示 -->
         <transition name="scale">
             <div v-if="msgModal.show" class="fixed top-10 left-1/2 transform -translate-x-1/2 z-[200] flex items-center justify-center p-4 pointer-events-none">
                 <div class="bg-gray-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center space-x-3 pointer-events-auto">
@@ -632,7 +605,6 @@
 
     </div>
 
-    <!-- Firebase 模組載入 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -646,7 +618,7 @@
                 const loading = ref(false);
                 const loadingMsg = ref('');
                 const showSettings = ref(false);
-                const showShareModal = ref(false); // 新增：分享視窗狀態
+                const showShareModal = ref(false); 
                 const showPasswordModal = ref(false);
                 const adminPassword = ref('');
                 const isPreviewMode = ref(false);
@@ -709,6 +681,12 @@
                     }
                 });
 
+                const closeRouletteModal = () => {
+                    if (!isSpinning.value) {
+                        showRouletteModal.value = false;
+                    }
+                };
+
                 // 初始化與解碼
                 onMounted(async () => {
                     const urlParams = new URLSearchParams(window.location.search);
@@ -726,9 +704,7 @@
                             const decoded = JSON.parse(decodedStr);
                             if (decoded.fb) {
                                 configStr = JSON.stringify(decoded.fb);
-                                // 相容舊版網址：優先保留本機金鑰，若無則看網址有沒有舊版帶入的金鑰
                                 gKey = localStorage.getItem('office_eats_gemini_key') || decoded.gm || ''; 
-                                // 相容舊版網址的名稱
                                 uName = localStorage.getItem('office_eats_unit_name') || decoded.unit || '';
                                 
                                 localStorage.setItem('office_eats_fb_config', configStr);
@@ -771,12 +747,11 @@
                 };
 
                 const setupRealtimeListeners = () => {
-                    // ⭐ 新增：監聽資料庫中的「單位名稱 (全域設定)」
                     onSnapshot(doc(db, basePath, "systemSettings", "info"), (docSnap) => {
                         if (docSnap.exists() && docSnap.data().unitName) {
                             unitName.value = docSnap.data().unitName;
                             localStorage.setItem('office_eats_unit_name', unitName.value);
-                            document.title = `${unitName.value} 飲料歡樂點 🤪`; // 同步更新瀏覽器頁籤標題
+                            document.title = `${unitName.value} 飲料歡樂點 🤪`; 
                         }
                     });
 
@@ -1009,24 +984,51 @@
                     reader.readAsDataURL(file);
                 };
 
+                // ⭐ 增強版 AI 解析函數
                 const analyzeMenuDirectly = async (base64Image) => {
                     if (!geminiKey.value) { showMsg('請先在設定中填入 Gemini API Key', 'error'); aiProcessing.value = false; if(fileInput.value) fileInput.value.value = ''; return; }
                     try {
                         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey.value}`;
-                        const prompt = `分析這張飲料菜單。擷取所有飲品和最貴(或大杯L)的價格。只回傳純 JSON 陣列，例如：[{"name":"紅茶", "price": 30}]。不要包含 markdown 代碼塊標記 (如 \`\`\`json)。`;
+                        
+                        const prompt = `你是一個精準的資料擷取系統。請分析這張飲料菜單照片，並嚴格轉換為 JSON 格式。
+                        規則：
+                        1. 擷取所有「飲品名稱」與「價格」。
+                        2. 若同一款飲料有多個價格（如 M/L 尺寸），請一律只擷取「最貴」或「大杯(L)」的價格，並轉為純數字。
+                        3. 絕對要忽略「加料區」(如加珍珠+10元)、「甜度冰塊說明」或「店鋪資訊」。
+                        4. 你的回應必須只能是一個合法的 JSON 陣列，絕對不能包含任何 Markdown 標記 (如 \`\`\`json)、不能有任何解釋文字、不能有開頭或結尾的空白行。
+                        5. 正確格式範例：[{"name":"經典紅茶","price":35},{"name":"珍珠奶茶","price":55}]`;
+
                         const res = await fetch(apiUrl, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: base64Image } }] }] })
                         });
                         const result = await res.json();
                         if(result.error) throw new Error(result.error.message);
-                        const text = result.candidates[0].content.parts[0].text;
-                        const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                        newMenuItems.value = JSON.parse(jsonStr).map(i => ({...i, category: 'AI視覺解析'}));
-                        showMsg('AI 成功將菜單轉為文字囉！');
+                        
+                        let text = result.candidates[0].content.parts[0].text;
+                        
+                        // 強制過濾 Markdown 與雜訊
+                        text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                        const startIndex = text.indexOf('[');
+                        const endIndex = text.lastIndexOf(']');
+                        if (startIndex !== -1 && endIndex !== -1) {
+                            text = text.substring(startIndex, endIndex + 1);
+                        }
+
+                        const parsedData = JSON.parse(text);
+                        if (!Array.isArray(parsedData)) throw new Error("AI 回傳的不是陣列");
+                        
+                        newMenuItems.value = parsedData.map(i => ({
+                            name: i.name || '未知名稱', 
+                            price: Number(i.price) || 0, 
+                            category: 'AI視覺解析'
+                        }));
+                        
+                        showMsg(`🎉 AI 成功解析了 ${newMenuItems.value.length} 個品項！`);
                     } catch (e) {
-                        showMsg('AI 辨識失敗，請檢查圖片或金鑰', 'error');
-                        newMenuItems.value = [{ name: '測試飲料', price: 50 }];
+                        console.error("AI 解析詳細錯誤:", e);
+                        showMsg('AI 辨識失敗或排版太複雜，請嘗試重新上傳或手動新增', 'error');
+                        if(newMenuItems.value.length === 0) newMenuItems.value = [{ name: '', price: null, category: '手動新增' }];
                     } finally {
                         aiProcessing.value = false; if(fileInput.value) fileInput.value.value = '';
                     }
@@ -1128,7 +1130,6 @@
                         localStorage.setItem('office_eats_gemini_key', tempGeminiKey.value);
                         localStorage.setItem('office_eats_unit_name', tempUnitName.value.trim());
                         
-                        // ⭐ 第一次設定時，嘗試立即將單位名稱寫入 Firebase (確保同事點網址時能馬上同步)
                         try {
                             const app = initializeApp(configObj);
                             const tempDb = getFirestore(app);
@@ -1152,7 +1153,6 @@
                     showMsg('Gemini API Key 更新成功！', 'success');
                 };
 
-                // ⭐ 寫入 Firebase 資料庫
                 const updateUnitName = async () => {
                     if (!tempUnitName.value.trim()) return showMsg('請輸入單位名稱', 'error');
                     const newName = tempUnitName.value.trim();
@@ -1175,7 +1175,6 @@
                 const shareUrl = computed(() => {
                     if(!isConfigured.value) return '';
                     const configStr = localStorage.getItem('office_eats_fb_config');
-                    // ⭐ 極致縮短：既然單位名稱寫進資料庫了，網址裡只要裝 Firebase Config 就好！
                     const payload = { fb: JSON.parse(configStr) };
                     return `${window.location.href.split('?')[0]}?config=${btoa(encodeURIComponent(JSON.stringify(payload)))}`;
                 });
@@ -1203,7 +1202,7 @@
                     activeItem, itemOptions, menuItems, openItemModal, setSize, confirmAddItem,
                     updateQty, removeFromCart, submitOrder, handleImageUpload, newMenuItems, aiProcessing, addNewEmptyItem,
                     existingOrders, generateOrderText, copyOrderText, toggleOrderStatus,
-                    showRouletteModal, rouletteWinner, rouletteStyle, isSpinning, startLuckyDraw,
+                    showRouletteModal, rouletteWinner, rouletteStyle, isSpinning, startLuckyDraw, closeRouletteModal,
                     saveSettings, updateGeminiKey, updateUnitName, clearSettings, shareUrl, qrCodeUrl, copyShareUrl, msgModal, fileInput, isPreviewMode, enterPreviewMode
                 };
             }

@@ -346,7 +346,7 @@
                     </div>
                 </div>
 
-                <!-- 狀態 4：訂單統計 -->
+                <!-- 狀態 4：訂單統計 (⭐ 已經全新改寫為卡片式排版) -->
                 <div v-else-if="currentView === 'orders'" key="orders">
                     <div class="relative flex items-center justify-center mb-6 border-b-2 border-dashed border-gray-300 pb-4">
                         <button @click="currentView = 'menu'" class="absolute left-0 text-gray-500 hover:text-gray-800 transition-colors flex items-center px-2 py-1.5 rounded-lg hover:bg-gray-100" title="返回菜單點餐">
@@ -378,54 +378,52 @@
                                      <span v-if="isConfigured" class="ml-3 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full border border-green-200 flex items-center animate-pulse"><i class="fas fa-sync-alt fa-spin mr-1"></i>即時同步中</span>
                                  </h3>
                              </div>
-                             <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm w-full">
-                                 <div class="max-h-[400px] overflow-auto custom-scrollbar">
-                                     <!-- ⭐ 加入「刪除」的表格欄位 -->
-                                     <table class="w-full text-sm text-left min-w-[500px]">
-                                         <thead class="bg-gray-50 font-bold text-gray-600 sticky top-0 shadow-sm z-10">
-                                             <tr>
-                                                 <th class="p-3 border-b">訂購人</th>
-                                                 <th class="p-3 border-b">品項內容</th>
-                                                 <th class="p-3 text-right border-b">金額</th>
-                                                 <th class="p-3 text-center border-b w-16">付款</th>
-                                                 <th class="p-3 text-center border-b w-16">領餐</th>
-                                                 <th class="p-3 text-center border-b w-12">刪除</th>
-                                             </tr>
-                                         </thead>
-                                         <tbody>
-                                             <tr v-if="existingOrders.length === 0">
-                                                 <td colspan="6" class="p-6 text-center text-gray-400">目前還沒有人點餐</td>
-                                             </tr>
-                                             <transition-group name="fade">
-                                                 <tr v-for="order in existingOrders" :key="order.id" class="border-b border-gray-50 hover:bg-yellow-50/50 transition-colors group">
-                                                     <td class="p-3 font-medium text-gray-700">{{ order.user }}</td>
-                                                     <td class="p-3">
-                                                         <div class="text-gray-800">{{ order.item }} <span class="text-xs text-gray-500 ml-1">x{{ order.qty }}</span></div>
-                                                         <div v-if="order.note" class="text-xs text-orange-500 mt-0.5"><i class="fas fa-info-circle mr-1"></i>{{ order.note }}</div>
-                                                     </td>
-                                                     <td class="p-3 text-right font-mono font-bold text-gray-700">${{ order.item_price || '-' }}</td>
-                                                     <td class="p-3 text-center">
-                                                         <button @click="toggleOrderStatus(order, 'paid')" :class="order.paid ? 'bg-green-600 text-white border-green-700 shadow-md' : 'bg-gray-100 text-gray-500 border-gray-400 hover:bg-gray-200'" class="border-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap active:scale-95">
-                                                             {{ order.paid ? '已付' : '未付' }}
-                                                         </button>
-                                                     </td>
-                                                     <td class="p-3 text-center">
-                                                         <button @click="toggleOrderStatus(order, 'received')" :class="order.received ? 'bg-blue-600 text-white border-blue-700 shadow-md' : 'bg-gray-100 text-gray-500 border-gray-400 hover:bg-gray-200'" class="border-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap active:scale-95">
-                                                             {{ order.received ? '已領' : '未領' }}
-                                                         </button>
-                                                     </td>
-                                                     <!-- ⭐ 新增：取消(刪除)訂單按鈕 -->
-                                                     <td class="p-3 text-center">
-                                                         <button @click="confirmModal.show('deleteOrder', order)" class="text-gray-300 hover:text-red-500 p-2 rounded transition-colors" title="取消此訂單">
-                                                             <i class="fas fa-trash-alt"></i>
-                                                         </button>
-                                                     </td>
-                                                 </tr>
-                                             </transition-group>
-                                         </tbody>
-                                     </table>
+                             
+                             <!-- ⭐ 終極版：超緊湊「操作優先」條列佈局 (完美解決過長與滑動問題) -->
+                             <div class="w-full bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                                 <!-- 空資料狀態 -->
+                                 <div v-if="existingOrders.length === 0" class="p-8 text-center text-gray-400">
+                                     目前還沒有人點餐喔！
                                  </div>
+                                 
+                                 <!-- 緊湊條列 -->
+                                 <transition-group name="fade" tag="div" class="flex flex-col divide-y divide-gray-100 max-h-[500px] overflow-y-auto custom-scrollbar">
+                                     <div v-for="order in existingOrders" :key="order.id" class="p-3 hover:bg-yellow-50/50 transition-colors flex items-start gap-3 group">
+                                         
+                                         <!-- 1. 最前面：付款與領貨按鈕 (小巧上下排列) -->
+                                         <div class="flex flex-col gap-1.5 shrink-0 w-14 mt-0.5">
+                                             <button @click="toggleOrderStatus(order, 'paid')" :class="order.paid ? 'bg-green-500 text-white shadow-sm' : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'" class="py-1 rounded text-[11px] font-bold transition-all active:scale-95 leading-none tracking-widest">
+                                                 {{ order.paid ? '已付' : '未付' }}
+                                             </button>
+                                             <button @click="toggleOrderStatus(order, 'received')" :class="order.received ? 'bg-blue-500 text-white shadow-sm' : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'" class="py-1 rounded text-[11px] font-bold transition-all active:scale-95 leading-none tracking-widest">
+                                                 {{ order.received ? '已領' : '未領' }}
+                                             </button>
+                                         </div>
+
+                                         <!-- 2. 中間：姓名、品項、備註 (自動換行不跑版) -->
+                                         <div class="flex-1 min-w-0 flex flex-col justify-start">
+                                             <div class="flex items-baseline flex-wrap gap-x-2 gap-y-0.5">
+                                                 <span class="font-black text-gray-800 text-lg whitespace-nowrap">{{ order.user }}</span>
+                                                 <span class="text-gray-700 text-sm font-medium leading-tight">{{ order.item }} <span class="text-xs text-gray-400">x{{ order.qty }}</span></span>
+                                             </div>
+                                             <div v-if="order.note" class="text-xs text-orange-600 mt-1 bg-orange-50 inline-block px-1.5 py-0.5 rounded border border-orange-100 self-start truncate max-w-full">
+                                                 <i class="fas fa-info-circle mr-1"></i>{{ order.note }}
+                                             </div>
+                                         </div>
+
+                                         <!-- 3. 右側：金額與刪除 -->
+                                         <div class="flex flex-col items-end justify-between shrink-0 h-full min-h-[44px]">
+                                             <div class="font-mono font-black text-teal-600 text-base">${{ order.item_price || '-' }}</div>
+                                             <button @click="confirmModal.show('deleteOrder', order)" class="text-gray-300 hover:text-red-500 p-1 rounded transition-colors mt-auto" title="取消訂單">
+                                                 <i class="fas fa-trash-alt text-sm"></i>
+                                             </button>
+                                         </div>
+                                         
+                                     </div>
+                                 </transition-group>
                              </div>
+                             <!-- 緊湊條列結束 -->
+                             
                         </div>
                     </div>
                 </div>
@@ -487,7 +485,7 @@
                             </div>
                         </div>
 
-                        <!-- ⭐ 甜度選項已升級：加入一分糖、二分糖 -->
+                        <!-- 甜度選項 -->
                         <div>
                             <label class="block text-sm font-bold mb-2 text-gray-700">甜度 <span class="text-xs font-normal text-gray-400">(選填)</span></label>
                             <div class="flex flex-wrap gap-2">
@@ -705,7 +703,6 @@
                     msgTimeout = setTimeout(() => msgModal.show = false, 3000);
                 };
 
-                // ⭐ 增強版彈出確認視窗 (支援刪除訂單)
                 const confirmModal = reactive({
                     isVisible: false, title: '', message: '', actionType: '', payload: null,
                     show: (type, payload = null) => {
@@ -728,9 +725,12 @@
                 });
 
                 const closeRouletteModal = () => {
-                    if (!isSpinning.value) showRouletteModal.value = false;
+                    if (!isSpinning.value) {
+                        showRouletteModal.value = false;
+                    }
                 };
 
+                // 初始化與解碼
                 onMounted(async () => {
                     const urlParams = new URLSearchParams(window.location.search);
                     const configParam = urlParams.get('config');
@@ -838,7 +838,7 @@
                     allStores.value = ['50嵐', '可不可', '清心福全', '迷客夏', '示範飲料店'];
                     storeMenusObj.value = { '示範飲料店': [ { id: 1, name: '招牌珍珠奶茶', price: 50, category: '茶飲' } ] };
                     storePhonesObj.value = { '示範飲料店': '02-12345678' };
-                    existingOrders.value = [ { id: 'test1', user: '小明', item: '招牌珍珠奶茶', qty: 1, note: '半糖, 少冰', item_price: 50, paid: true, received: false } ];
+                    existingOrders.value = [ { id: 'test1', user: '小明', item: '招牌珍珠奶茶', qty: 1, note: '一分糖, 少冰', item_price: 50, paid: true, received: false } ];
                     showMsg('已進入預覽模式 (此模式下資料不會真的儲存喔！)', 'info');
                 };
 
@@ -1005,7 +1005,6 @@
                     finally { loading.value = false; }
                 };
 
-                // ⭐ 執行刪除訂單邏輯
                 const executeDeleteOrder = async (order) => {
                     if (!isConfigured.value) {
                         existingOrders.value = existingOrders.value.filter(o => o.id !== order.id);
